@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-// 1. Import useRouter dari next/navigation
 import { useRouter } from 'next/navigation';
 import { User, Settings, Bell, LogOut, X } from 'lucide-react';
 
 export default function SettingsModal({ open, onClose }) {
-  // 2. Inisialisasi router
+  // Inisialisasi router
   const router = useRouter();
   
   // State untuk navigasi sidebar
@@ -23,7 +22,7 @@ export default function SettingsModal({ open, onClose }) {
       return;
     }
 
-    // 3. Redirect ke Landing Page (Root '/')
+    // Redirect ke Landing Page (Root '/')
     // Menggunakan replace agar user tidak bisa kembali (back) ke modal ini
     router.replace('/');
   };
