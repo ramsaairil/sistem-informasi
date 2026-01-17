@@ -6,7 +6,7 @@ import {
   Home,
   Calendar,
   Building2,
-  Inbox,
+  Bell,
   FileText,
   Clock,
   Settings
@@ -58,7 +58,7 @@ export default function Sidebar({ onOpenSettings }) {
         <Item href="/dashboard" label="Home" Icon={Home} />
         <Item href="/dashboard/jadwal" label="Jadwal" Icon={Calendar} />
         <Item href="/dashboard/ruangan" label="Ruangan" Icon={Building2} />
-        <Item href="/dashboard/inbox" label="Inbox" Icon={Inbox} />
+        <Item href="/dashboard/notifikasi" label="Notifikasi" Icon={Bell} />
 
         <div className="mt-4 mb-1 px-2 text-xs font-semibold text-gray-400 uppercase">
           Private
