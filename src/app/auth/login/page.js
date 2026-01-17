@@ -18,18 +18,41 @@ export default function LoginCard() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
-    });
+    try {
+      // 1. LOGIN AUTH (Cek Email & Password ke Supabase Auth)
+      const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    if (error) {
-      alert(error.message);
+      if (authError) throw authError;
+
+      // 2. CEK ROLE (Ambil data dari tabel 'profiles' berdasarkan ID user)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      // Jika ada error saat ambil profile (misal koneksi putus), atau data kosong
+      if (profileError && profileError.code !== 'PGRST116') {
+         console.error("Error fetching profile:", profileError);
+      }
+
+      // 3. LOGIKA REDIRECT
+      const userRole = profile?.role || 'Mahasiswa'; // Default ke Mahasiswa jika role tidak ketemu
+
+      if (userRole === 'Admin') {
+        router.push('/admin');      // Masuk ke Dashboard Admin
+      } else {
+        router.push('/dashboard');  // Masuk ke Dashboard User Biasa
+      }
+
+    } catch (error) {
+      alert(error.message); // Tampilkan pesan error jika login gagal
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    router.push('/dashboard');
   };
 
   return (
