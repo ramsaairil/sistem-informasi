@@ -75,12 +75,6 @@ export default function PemesananPage() {
     <div className="p-6 min-h-screen flex items-center justify-center">
       
       <div className="w-full max-w-2xl">
-        
-        {/* Header Sederhana */}
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Buat Pesanan Baru</h1>
-          <p className="text-sm text-gray-500 mt-1">Isi formulir untuk meminjam ruangan.</p>
-        </div>
 
         {/* Card Formulir */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -89,7 +83,7 @@ export default function PemesananPage() {
             
             {/* Nama Peminjam */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap / Organisasi</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap</label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-2.5 text-gray-400" />
                 <input
@@ -98,7 +92,6 @@ export default function PemesananPage() {
                   name="nama_peminjam"
                   value={formData.nama_peminjam}
                   onChange={handleChange}
-                  placeholder="Contoh: BEM Fasilkom / Ahmad Yani"
                   className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 />
               </div>

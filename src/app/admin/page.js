@@ -3,61 +3,39 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  LayoutDashboard, 
-  CalendarCheck, 
-  Building2, 
-  LogOut, 
-  CheckCircle2, 
-  XCircle, 
-  Clock,
-  User,
-  Users, // Icon baru untuk menu User
-  Trash2,
-  BadgeCheck
+  LayoutDashboard, CalendarCheck, Building2, Users, LogOut, 
+  CheckCircle2, XCircle, Clock, User, Trash2, Edit, Plus, X, Save
 } from 'lucide-react';
 
-// --- SIDEBAR ADMIN ---
+// --- SIDEBAR COMPONENT ---
 const AdminSidebar = ({ activeTab, setActiveTab }) => {
   const Menu = ({ id, label, icon: Icon }) => (
     <button
       onClick={() => setActiveTab(id)}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all mb-1
-        ${activeTab === id 
-          ? 'bg-gray-200 text-black font-medium' 
-          : 'text-gray-500 hover:bg-gray-100'}
+        ${activeTab === id ? 'bg-gray-200 text-black font-medium' : 'text-gray-500 hover:bg-gray-100'}
       `}
     >
-      <Icon size={18} />
-      {label}
+      <Icon size={18} /> {label}
     </button>
   );
 
   return (
-    <aside className="w-64 bg-[#F7F7F5] border-r border-[#E6E6E4] h-screen fixed left-0 top-0 flex flex-col p-4">
-      {/* Profile Admin */}
+    <aside className="w-64 bg-[#F7F7F5] border-r border-[#E6E6E4] h-screen fixed left-0 top-0 flex flex-col p-4 z-10">
       <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-8 h-8 rounded bg-gray-900 text-white flex items-center justify-center font-bold text-xs">
-          A
-        </div>
+        <div className="w-8 h-8 rounded bg-gray-900 text-white flex items-center justify-center font-bold text-xs">A</div>
         <div>
           <div className="text-sm font-bold text-gray-900">Administrator</div>
           <div className="text-xs text-gray-500">admin@kampus.ac.id</div>
         </div>
       </div>
-
-      {/* Menu Admin */}
       <div className="flex-1">
         <div className="px-2 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Main Menu</div>
         <Menu id="dashboard" label="Overview" icon={LayoutDashboard} />
         <Menu id="bookings" label="Persetujuan" icon={CalendarCheck} />
-        <Menu id="rooms" label="Data Ruangan" icon={Building2} />
-        
-        <div className="mt-4 px-2 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Users</div>
-        {/* Menu Baru: Kelola User */}
+        <Menu id="rooms" label="Kelola Ruangan" icon={Building2} />
         <Menu id="users" label="Kelola User" icon={Users} />
       </div>
-
-      {/* Logout */}
       <div className="border-t border-gray-200 pt-4">
         <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition">
           <LogOut size={18} /> Logout
@@ -67,26 +45,29 @@ const AdminSidebar = ({ activeTab, setActiveTab }) => {
   );
 };
 
-// --- HALAMAN UTAMA ---
+// --- MAIN PAGE COMPONENT ---
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('bookings'); 
   const [loading, setLoading] = useState(false);
   
   // Data State
   const [bookings, setBookings] = useState([]);
-  const [users, setUsers] = useState([]); // State untuk data user
+  const [users, setUsers] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [stats, setStats] = useState({ pending: 0, approved: 0 });
 
-  // 1. FETCH DATA (Booking & Users)
+  // Modal State (Untuk Add/Edit)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'user' atau 'room'
+  const [modalMode, setModalMode] = useState(''); // 'add' atau 'edit'
+  const [currentData, setCurrentData] = useState({}); // Data yang sedang diedit
+
+  // --- 1. FETCH DATA ---
   const fetchData = async () => {
     setLoading(true);
     
-    // Fetch Booking
-    const { data: bookingData } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    // Fetch Bookings
+    const { data: bookingData } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
     if (bookingData) {
       setBookings(bookingData);
       setStats({
@@ -95,89 +76,115 @@ export default function AdminPage() {
       });
     }
 
-    // Fetch Users (Profiles)
-    const { data: userData } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: true });
-      
-    if (userData) {
-      setUsers(userData);
-    }
+    // Fetch Users
+    const { data: userData } = await supabase.from('profiles').select('*').order('created_at', { ascending: true });
+    if (userData) setUsers(userData);
+
+    // Fetch Rooms
+    const { data: roomData } = await supabase.from('rooms').select('*').order('nama', { ascending: true });
+    if (roomData) setRooms(roomData);
 
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // 2. Handle Approve/Reject Booking
+  // --- 2. HANDLERS: BOOKINGS ---
   const handleBookingAction = async (id, newStatus) => {
     if (!confirm(newStatus === 'Approved' ? 'Setujui?' : 'Tolak?')) return;
     const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
-    if (!error) fetchData(); // Refresh data
+    if (!error) fetchData();
   };
 
-  // 3. Handle Delete User
-  const handleDeleteUser = async (id) => {
-    if (!confirm('Yakin ingin menghapus user ini?')) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+  // --- 3. HANDLERS: DELETE ---
+  const handleDelete = async (table, id) => {
+    if (!confirm('Yakin ingin menghapus data ini?')) return;
+    const { error } = await supabase.from(table).delete().eq('id', id);
     if (!error) {
-      setUsers(users.filter(u => u.id !== id));
-      alert('User berhasil dihapus.');
+      alert('Berhasil dihapus.');
+      fetchData();
     } else {
-      alert('Gagal hapus: ' + error.message);
+      alert('Gagal: ' + error.message);
     }
   };
 
+  // --- 4. HANDLERS: MODAL (ADD / EDIT) ---
+  const openModal = (type, mode, data = {}) => {
+    setModalType(type);
+    setModalMode(mode);
+    setCurrentData(data);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    
+    // Logic Simpan Room
+    if (modalType === 'room') {
+      const payload = {
+        nama: currentData.nama,
+        kapasitas: currentData.kapasitas,
+        fasilitas: currentData.fasilitas
+      };
+
+      if (modalMode === 'add') {
+        const { error } = await supabase.from('rooms').insert([payload]);
+        if (error) alert(error.message);
+      } else {
+        const { error } = await supabase.from('rooms').update(payload).eq('id', currentData.id);
+        if (error) alert(error.message);
+      }
+    }
+
+    // Logic Simpan User (Hanya Edit)
+    if (modalType === 'user' && modalMode === 'edit') {
+      const { error } = await supabase.from('profiles').update({
+        nama_lengkap: currentData.nama_lengkap,
+        role: currentData.role
+      }).eq('id', currentData.id);
+      
+      if (error) alert(error.message);
+    }
+
+    setIsModalOpen(false);
+    fetchData();
+  };
+
+  // --- UI RENDER ---
   return (
     <div className="flex min-h-screen bg-white">
-      
-      {/* SIDEBAR */}
       <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* CONTENT KANAN */}
       <main className="flex-1 ml-64 p-8">
         
-        {/* Header */}
+        {/* HEADER */}
         <div className="mb-8 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Portal</h1>
             <p className="text-gray-500 mt-1">
-              {activeTab === 'users' ? 'Kelola data pengguna aplikasi.' : 'Kelola sistem peminjaman ruangan.'}
+              {activeTab === 'users' ? 'Kelola Pengguna' : 
+               activeTab === 'rooms' ? 'Kelola Ruangan' : 
+               activeTab === 'bookings' ? 'Persetujuan Peminjaman' : 'Overview'}
             </p>
           </div>
           
-          {/* Stats hanya muncul di tab Booking/Dashboard */}
-          {activeTab !== 'users' && (
-            <div className="flex gap-4">
-              <div className="px-4 py-2 bg-orange-50 border border-orange-100 rounded-lg text-center">
-                <span className="block text-xl font-bold text-orange-600">{stats.pending}</span>
-                <span className="text-xs text-orange-600 uppercase font-bold">Pending</span>
-              </div>
-              <div className="px-4 py-2 bg-green-50 border border-green-100 rounded-lg text-center">
-                <span className="block text-xl font-bold text-green-600">{stats.approved}</span>
-                <span className="text-xs text-green-600 uppercase font-bold">Disetujui</span>
-              </div>
-            </div>
+          {/* Add Button (Hanya di Rooms) */}
+          {activeTab === 'rooms' && (
+            <button 
+              onClick={() => openModal('room', 'add')}
+              className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black transition"
+            >
+              <Plus size={16} /> Tambah Ruangan
+            </button>
           )}
         </div>
 
-        {/* --- TAB: BOOKINGS (PERSETUJUAN) --- */}
+        {/* === TAB: BOOKINGS === */}
         {activeTab === 'bookings' && (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <CalendarCheck size={18} className="text-gray-500" />
-                Daftar Permohonan Masuk
-              </h3>
-              <button onClick={fetchData} className="text-xs text-blue-600 hover:underline">Refresh</button>
-            </div>
-            
-            <div className="divide-y divide-gray-100">
+             <div className="divide-y divide-gray-100">
               {bookings.map((item) => (
-                <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition">
+                <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50">
                    <div className="flex items-start gap-4 flex-1">
                       <div className={`mt-1 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
                         ${item.status === 'Pending' ? 'bg-orange-100 text-orange-600' : 
@@ -201,8 +208,8 @@ export default function AdminPage() {
                    <div className="flex items-center gap-2">
                       {item.status === 'Pending' ? (
                         <>
-                          <button onClick={() => handleBookingAction(item.id, 'Approved')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-md shadow-sm">Setujui</button>
-                          <button onClick={() => handleBookingAction(item.id, 'Rejected')} className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-red-50 text-gray-700 text-xs font-bold rounded-md">Tolak</button>
+                          <button onClick={() => handleBookingAction(item.id, 'Approved')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-md">Setujui</button>
+                          <button onClick={() => handleBookingAction(item.id, 'Rejected')} className="px-3 py-1.5 border border-gray-300 hover:bg-red-50 text-red-600 text-xs font-bold rounded-md">Tolak</button>
                         </>
                       ) : (
                         <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">{item.status}</span>
@@ -214,76 +221,167 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* --- TAB: KELOLA USER (BARU) --- */}
-        {activeTab === 'users' && (
+        {/* === TAB: ROOMS (CRUD) === */}
+        {activeTab === 'rooms' && (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <Users size={18} className="text-gray-500" />
-                Daftar Pengguna Terdaftar
-              </h3>
-              <div className="text-xs text-gray-500">Total: {users.length} User</div>
-            </div>
-
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-3">Nama Lengkap</th>
+                  <th className="px-6 py-3">Nama Ruangan</th>
+                  <th className="px-6 py-3">Kapasitas</th>
+                  <th className="px-6 py-3">Fasilitas</th>
+                  <th className="px-6 py-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {rooms.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">{r.nama}</td>
+                    <td className="px-6 py-4">{r.kapasitas} Orang</td>
+                    <td className="px-6 py-4 text-gray-500 truncate max-w-xs">{r.fasilitas}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openModal('room', 'edit', r)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded"><Edit size={16} /></button>
+                        <button onClick={() => handleDelete('rooms', r.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* === TAB: USERS (EDIT/DELETE) === */}
+        {activeTab === 'users' && (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+             <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-3">Nama</th>
                   <th className="px-6 py-3">Email</th>
                   <th className="px-6 py-3">Role</th>
                   <th className="px-6 py-3 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {users.length === 0 ? (
-                  <tr><td colSpan="4" className="text-center py-10 text-gray-400">Belum ada data user.</td></tr>
-                ) : (
-                  users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                          {u.nama_lengkap?.[0] || 'U'}
-                        </div>
-                        {u.nama_lengkap}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">{u.email}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border
-                          ${u.role === 'Admin' 
-                            ? 'bg-purple-50 text-purple-700 border-purple-100' 
-                            : u.role === 'Dosen'
-                            ? 'bg-blue-50 text-blue-700 border-blue-100'
-                            : 'bg-gray-100 text-gray-600 border-gray-200'}
-                        `}>
-                          {u.role === 'Admin' && <BadgeCheck size={12} />}
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button 
-                          onClick={() => handleDeleteUser(u.id)}
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition"
-                          title="Hapus User"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">{u.nama_lengkap}</td>
+                    <td className="px-6 py-4 text-gray-500">{u.email}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded text-xs border ${u.role === 'Admin' ? 'bg-purple-50 border-purple-100 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openModal('user', 'edit', u)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded"><Edit size={16} /></button>
+                        <button onClick={() => handleDelete('profiles', u.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
-        
-        {/* Placeholder Tab Lain */}
-        {(activeTab === 'dashboard' || activeTab === 'rooms') && (
-           <div className="text-center py-20 text-gray-400 border-2 border-dashed rounded-xl bg-gray-50">
-             Fitur {activeTab === 'dashboard' ? 'Overview Dashboard' : 'Manajemen Ruangan'} belum tersedia.
-           </div>
-        )}
 
       </main>
+
+      {/* === MODAL POPUP (FORM) === */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-md rounded-xl p-6 shadow-xl animate-in fade-in zoom-in duration-200">
+            
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900">
+                {modalMode === 'add' ? 'Tambah' : 'Edit'} {modalType === 'room' ? 'Ruangan' : 'User'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-4">
+              
+              {/* FORM RUANGAN */}
+              {modalType === 'room' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nama Ruangan</label>
+                    <input 
+                      required type="text" 
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                      value={currentData.nama || ''}
+                      onChange={(e) => setCurrentData({...currentData, nama: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Kapasitas</label>
+                    <input 
+                      required type="number" 
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                      value={currentData.kapasitas || ''}
+                      onChange={(e) => setCurrentData({...currentData, kapasitas: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Fasilitas</label>
+                    <textarea 
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                      value={currentData.fasilitas || ''}
+                      onChange={(e) => setCurrentData({...currentData, fasilitas: e.target.value})}
+                    ></textarea>
+                  </div>
+                </>
+              )}
+
+              {/* FORM USER (Hanya Edit) */}
+              {modalType === 'user' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                    <input 
+                      required type="text" 
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                      value={currentData.nama_lengkap || ''}
+                      onChange={(e) => setCurrentData({...currentData, nama_lengkap: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white"
+                      value={currentData.role || 'User'}
+                      onChange={(e) => setCurrentData({...currentData, role: e.target.value})}
+                    >
+                      <option value="User">User</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex justify-center items-center gap-2"
+                >
+                  <Save size={16} /> Simpan
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
