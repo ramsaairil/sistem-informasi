@@ -8,13 +8,20 @@ export default function JadwalPage() {
   const [jadwal, setJadwal] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- FUNCTION: HANYA AMBIL DATA (READ ONLY) ---
+  // --- FUNCTION: AMBIL DATA DENGAN RELASI (JOIN) ---
   const fetchJadwal = async () => {
     try {
       setLoading(true);
+      // UBAH: Query sekarang mengambil data dari tabel relasi
+      // rooms(name) -> ambil kolom 'name' dari tabel rooms
+      // courses(name) -> ambil kolom 'name' dari tabel courses
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select(`
+          *,
+          rooms ( name ),
+          courses ( name )
+        `)
         .order('id', { ascending: false });
 
       if (error) throw error;
@@ -37,7 +44,7 @@ export default function JadwalPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Jadwal Perkuliahan</h1>
           <p className="text-gray-500 mt-1">
-            Informasi jadwal dosen.
+            Informasi jadwal dosen dan penggunaan ruangan.
           </p>
         </div>
       </div>
@@ -71,13 +78,28 @@ export default function JadwalPage() {
             ) : (
               jadwal.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{item.ruangan}</td>
-                  <td className="px-4 py-3">{item.hari}</td>
-                  <td className="px-4 py-3 text-gray-600 font-mono text-xs">
-                    {item.jam_mulai?.slice(0, 5)} - {item.jam_selesai?.slice(0, 5)}
+                  {/* UBAH: Mengakses nama ruangan dari relasi */}
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {item.rooms?.name || 'Ruangan Tidak Dikenal'}
                   </td>
-                  <td className="px-4 py-3">{item.matkul}</td>
-                  <td className="px-4 py-3">{item.dosen}</td>
+                  
+                  {/* UBAH: Pastikan nama kolom 'day' atau 'hari' sesuai database kamu */}
+                  <td className="px-4 py-3 capitalize">{item.day || item.hari}</td>
+                  
+                  {/* UBAH: Menggunakan start_time & end_time */}
+                  <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+                    {item.start_time?.slice(0, 5)} - {item.end_time?.slice(0, 5)}
+                  </td>
+                  
+                  {/* UBAH: Mengakses nama mata kuliah dari relasi */}
+                  <td className="px-4 py-3 font-medium text-blue-600">
+                    {item.courses?.name || 'Matkul Tidak Dikenal'}
+                  </td>
+                  
+                  {/* UBAH: Menggunakan lecturer */}
+                  <td className="px-4 py-3">{item.lecturer}</td>
+                  
+                  {/* Status (biasanya tetap status kalau tidak diubah) */}
                   <td className="px-4 py-3">
                     <span
                       className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -86,7 +108,7 @@ export default function JadwalPage() {
                           : 'bg-green-50 text-green-600 border border-green-100'
                       }`}
                     >
-                      {item.status}
+                      {item.status || 'Tersedia'}
                     </span>
                   </td>
                 </tr>

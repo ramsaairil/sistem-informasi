@@ -2,33 +2,31 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Clock, User, FileText, Send } from 'lucide-react';
+import { Calendar, Clock, User, FileText, Send, Loader2 } from 'lucide-react';
 
 export default function PemesananPage() {
-  // --- STATE ---
   const [loading, setLoading] = useState(false);
   const [listRuangan, setListRuangan] = useState([]); 
 
-  // State Form
+  // 1. PERBAIKAN STATE: Nama key disamakan persis dengan kolom Database
   const [formData, setFormData] = useState({
-    nama_peminjam: '',
-    ruangan: '',
-    tanggal: '',
-    jam_mulai: '',
-    jam_selesai: '',
-    keterangan: ''
+    borrow_name: '',  // Sesuai DB
+    room_name: '',    // Sesuai DB (tipe int8/ID ruangan)
+    booking_date: '',
+    start_time: '',
+    end_time: '',
+    description: ''
   });
 
-  // --- FETCH DATA RUANGAN (DROPDOWN) ---
+  // Fetch Data Ruangan
   useEffect(() => {
     const fetchRuangan = async () => {
-      const { data } = await supabase.from('rooms').select('nama');
+      const { data } = await supabase.from('rooms').select('id, name');
       if (data) setListRuangan(data);
     };
     fetchRuangan();
   }, []);
 
-  // --- HANDLERS ---
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -38,33 +36,44 @@ export default function PemesananPage() {
     setLoading(true);
 
     try {
+      // 2. AMBIL USER ID: Kita butuh tahu siapa yang login
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        alert("Sesi habis. Silakan login ulang.");
+        return;
+      }
+
+      // 3. PAYLOAD LENGKAP: Masukkan room_name dan user_id
       const { error } = await supabase.from('bookings').insert([
         {
-          nama_peminjam: formData.nama_peminjam,
-          ruangan: formData.ruangan,
-          tanggal: formData.tanggal,
-          jam_mulai: formData.jam_mulai,
-          jam_selesai: formData.jam_selesai,
-          keterangan: formData.keterangan,
-          status: 'Pending'
+          borrow_name: formData.borrow_name,
+          room_name: parseInt(formData.room_name), // Database minta int8
+          booking_date: formData.booking_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          description: formData.description,
+          status: 'Pending',
+          user_id: user.id // Wajib diisi sesuai screenshot DB
         }
       ]);
 
       if (error) throw error;
 
-      alert('Pengajuan berhasil dikirim! Silakan cek menu Riwayat untuk memantau status.');
+      alert('Pengajuan berhasil dikirim!');
       
       // Reset Form
       setFormData({
-        nama_peminjam: '',
-        ruangan: '',
-        tanggal: '',
-        jam_mulai: '',
-        jam_selesai: '',
-        keterangan: ''
+        borrow_name: '',
+        room_name: '',
+        booking_date: '',
+        start_time: '',
+        end_time: '',
+        description: ''
       });
 
     } catch (err) {
+      console.error(err);
       alert('Gagal mengirim: ' + err.message);
     } finally {
       setLoading(false);
@@ -73,11 +82,9 @@ export default function PemesananPage() {
 
   return (
     <div className="p-6 min-h-screen flex items-center justify-center">
-      
       <div className="w-full max-w-2xl">
-
-        {/* Card Formulir */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <h2 className="text-lg font-bold mb-4 text-gray-800">Formulir Peminjaman</h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             
@@ -89,10 +96,11 @@ export default function PemesananPage() {
                 <input
                   required
                   type="text"
-                  name="nama_peminjam"
-                  value={formData.nama_peminjam}
+                  name="borrow_name" // Sesuai State & DB
+                  value={formData.borrow_name}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Masukkan nama peminjam"
                 />
               </div>
             </div>
@@ -104,14 +112,14 @@ export default function PemesananPage() {
                 <FileText size={16} className="absolute left-3 top-2.5 text-gray-400" />
                 <select
                   required
-                  name="ruangan"
-                  value={formData.ruangan}
+                  name="room_name" // Sesuai State & DB
+                  value={formData.room_name}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white appearance-none"
+                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none bg-white focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">-- Pilih Ruangan --</option>
-                  {listRuangan.map((r, idx) => (
-                    <option key={idx} value={r.nama}>{r.nama}</option>
+                  {listRuangan.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
               </div>
@@ -125,15 +133,15 @@ export default function PemesananPage() {
                 <input
                   required
                   type="date"
-                  name="tanggal"
-                  value={formData.tanggal}
+                  name="booking_date"
+                  value={formData.booking_date}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
-            {/* Waktu (Mulai - Selesai) */}
+            {/* Waktu */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Jam Mulai</label>
@@ -142,10 +150,10 @@ export default function PemesananPage() {
                   <input
                     required
                     type="time"
-                    name="jam_mulai"
-                    value={formData.jam_mulai}
+                    name="start_time"
+                    value={formData.start_time}
                     onChange={handleChange}
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -156,10 +164,10 @@ export default function PemesananPage() {
                   <input
                     required
                     type="time"
-                    name="jam_selesai"
-                    value={formData.jam_selesai}
+                    name="end_time"
+                    value={formData.end_time}
                     onChange={handleChange}
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -171,11 +179,11 @@ export default function PemesananPage() {
               <textarea
                 required
                 rows="3"
-                name="keterangan"
-                value={formData.keterangan}
+                name="description"
+                value={formData.description}
                 onChange={handleChange}
-                placeholder="Jelaskan tujuan peminjaman secara singkat..."
-                className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                placeholder="Jelaskan tujuan peminjaman..."
+                className="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               ></textarea>
             </div>
 
@@ -184,15 +192,10 @@ export default function PemesananPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50 shadow-sm"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
               >
-                {loading ? (
-                  'Sedang Mengirim...'
-                ) : (
-                  <>
-                    <Send size={16} /> Kirim Pengajuan
-                  </>
-                )}
+                {loading ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} />}
+                {loading ? 'Mengirim...' : 'Kirim Pengajuan'}
               </button>
             </div>
 

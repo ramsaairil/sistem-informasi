@@ -64,7 +64,7 @@ export default function Sidebar({ onOpenSettings }) {
           Private
         </div>
 
-        <Item href="/dashboard/pemesanan" label="Pemesanan" Icon={FileText} />
+        <Item href="/dashboard/pemesanan" label="Pengajuan" Icon={FileText} />
         <Item href="/dashboard/riwayat" label="Riwayat" Icon={Clock} />
       </div>
 

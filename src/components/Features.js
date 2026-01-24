@@ -4,12 +4,12 @@ const Features = () => {
   const features = [
     {
       title: "Cek Status",
-      desc: "Tidak perlu lagi berjalan ke ruangan untuk memastikan kosong atau isi. Lihat status ruangan langsung dari smartphone Anda.",
+      desc: "Optimalkan efisiensi waktu Anda dengan memantau ketersediaan ruangan dari jauh. Akses informasi status ruangan kini dapat dilakukan secara digital dan real-time.",
       icon: Zap,
     },
     {
       title: "Jadwal Anti Bentrok",
-      desc: "Sistem otomatis menolak pengajuan di jam yang sama. Kepastian jadwal bagi Dosen dan Mahasiswa.",
+      desc: "Sistem otomatis menolak pengajuan di jam yang sama. Kepastian jadwal bagi Dosen.",
       icon: ShieldCheck,
     },
     {
