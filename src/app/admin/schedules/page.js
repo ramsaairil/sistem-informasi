@@ -11,45 +11,72 @@ export default function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
-  const [currentData, setCurrentData] = useState({});
-  const [saving, setSaving] = useState(false);
   
-  // Dropdown Data
+  const [currentData, setCurrentData] = useState({
+    course_id: '',
+    room_id: '',
+    lecturer: '',
+    date: '', 
+    start_time: '',
+    end_time: ''
+  });
+  
+  const [saving, setSaving] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [courses, setCourses] = useState([]);
 
   // --- FETCH DATA ---
+  const fetchDropdowns = async () => {
+    try {
+      const { data: r } = await supabase.from('rooms').select('*');
+      if (r) setRooms(r);
+      const { data: c } = await supabase.from('courses').select('*');
+      if (c) setCourses(c);
+    } catch (e) { console.error(e); }
+  };
+
   const fetchSchedules = async () => {
     setLoading(true);
-    // Relasi foreign key: rooms(nama) dan courses(name)
-    const { data } = await supabase
-      .from('schedules')
-      .select(`*, rooms(nama), courses(name)`)
-      .order('day');
-    if (data) setSchedules(data);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('schedules')
+        .select(`*, rooms(*), courses(*)`) 
+        .order('date', { ascending: true });
+        
+      if (error) throw error;
+      setSchedules(data || []);
+    } catch (err) {
+      console.error("Error Schedules:", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const fetchDropdowns = async () => {
-    const { data: r } = await supabase.from('rooms').select('id, nama');
-    const { data: c } = await supabase.from('courses').select('id, name');
-    setRooms(r || []);
-    setCourses(c || []);
-  };
-
-  useEffect(() => { fetchSchedules(); }, []);
+  useEffect(() => { fetchSchedules(); fetchDropdowns(); }, []);
 
   // --- ACTIONS ---
   const handleDelete = async (id) => {
     if(!confirm('Hapus jadwal ini?')) return;
-    await supabase.from('schedules').delete().eq('id', id);
-    fetchSchedules();
+    try {
+      await supabase.from('schedules').delete().eq('id', id);
+      fetchSchedules();
+    } catch (err) { alert(err.message); }
   };
 
-  const openModal = (mode, data = {}) => {
-    fetchDropdowns(); // Load data dulu
+  const openModal = (mode, data = null) => {
     setModalMode(mode);
-    setCurrentData(data);
+    if (mode === 'edit' && data) {
+      setCurrentData(data);
+    } else {
+      setCurrentData({
+        course_id: '',
+        room_id: '',
+        lecturer: '',
+        date: new Date().toISOString().split('T')[0],
+        start_time: '',
+        end_time: ''
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -57,44 +84,63 @@ export default function SchedulesPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      // Pastikan kolom start_time & end_time SUDAH ADA di database
       const payload = {
         room_id: currentData.room_id,
         course_id: currentData.course_id,
         lecturer: currentData.lecturer,
-        day: currentData.day,
+        date: currentData.date,
         start_time: currentData.start_time,
-        end_time: currentData.end_time
+        end_time: currentData.end_time,
+        status: 'Pending' 
       };
 
-      if (modalMode === 'add') await supabase.from('schedules').insert([payload]);
-      else await supabase.from('schedules').update(payload).eq('id', currentData.id);
+      // Hapus properti kosong agar tidak error jika kolom nullable
+      if (!payload.start_time) delete payload.start_time;
+      if (!payload.end_time) delete payload.end_time;
+
+      if (modalMode === 'add') {
+        const { error } = await supabase.from('schedules').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('schedules').update(payload).eq('id', currentData.id);
+        if (error) throw error;
+      }
 
       setIsModalOpen(false);
-      fetchSchedules();
-    } catch (err) { alert("Gagal: " + err.message); } 
-    finally { setSaving(false); }
+      fetchSchedules(); 
+    } catch (err) { 
+      alert("Gagal menyimpan: " + err.message); 
+    } finally { 
+      setSaving(false); 
+    }
+  };
+
+  // Helper Format Tanggal
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
+    });
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
-      
-      {/* HEADER */}
       <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Jadwal Kuliah</h1>
-          <p className="text-sm text-gray-500">Atur jadwal mata kuliah tetap per semester.</p>
+          <p className="text-sm text-gray-500">Atur jadwal perkuliahan.</p>
         </div>
         <button onClick={() => openModal('add')} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm shadow-blue-200">
           <Plus size={16}/> Tambah Jadwal
         </button>
       </div>
 
-      {/* TABLE */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100 uppercase tracking-wider">
             <tr>
-              <th className="px-6 py-4">Hari & Jam</th>
+              <th className="px-6 py-4">Waktu</th>
               <th className="px-6 py-4">Mata Kuliah</th>
               <th className="px-6 py-4">Ruangan</th>
               <th className="px-6 py-4">Dosen</th>
@@ -102,37 +148,41 @@ export default function SchedulesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {schedules.map((s) => (
-              <tr key={s.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-gray-900 flex items-center gap-2">
-                     <CalendarDays size={16} className="text-blue-500"/> {s.day}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-1 ml-6">
-                     <Clock size={12}/> {s.start_time?.slice(0,5)} - {s.end_time?.slice(0,5)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 font-medium">{s.courses?.name || '-'}</td>
-                <td className="px-6 py-4">
-                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold border border-gray-200">
-                        {s.rooms?.nama || s.rooms?.name || '-'}
-                    </span>
-                </td>
-                <td className="px-6 py-4 text-gray-600">{s.lecturer}</td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => openModal('edit', s)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit size={16}/></button>
-                    <button onClick={() => handleDelete(s.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {loading ? (
+              <tr><td colSpan="5" className="p-6 text-center text-gray-500">Memuat data...</td></tr>
+            ) : schedules.length === 0 ? (
+              <tr><td colSpan="5" className="p-10 text-center text-gray-400">Belum ada jadwal.</td></tr>
+            ) : (
+              schedules.map((s) => (
+                <tr key={s.id} className="hover:bg-gray-50 transition">
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-gray-900 flex items-center gap-2">
+                       <CalendarDays size={16} className="text-blue-500"/> {formatDate(s.date)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1 ml-6">
+                       <Clock size={12}/> {s.start_time?.slice(0,5)} - {s.end_time?.slice(0,5)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 font-medium">{s.courses?.name || 'Unknown'}</td>
+                  <td className="px-6 py-4">
+                      <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold border border-gray-200">
+                          {s.rooms?.name || s.rooms?.nama || 'Unknown'}
+                      </span>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600">{s.lecturer}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => openModal('edit', s)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit size={16}/></button>
+                      <button onClick={() => handleDelete(s.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        {schedules.length === 0 && !loading && <div className="p-10 text-center text-gray-400">Belum ada jadwal.</div>}
       </div>
 
-      {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl p-6 border border-gray-100">
@@ -140,50 +190,50 @@ export default function SchedulesPage() {
               <h2 className="font-bold text-lg text-gray-900">{modalMode==='add'?'Tambah':'Edit'} Jadwal</h2>
               <button onClick={()=>setIsModalOpen(false)}><X size={20} className="text-gray-400"/></button>
             </div>
+            
             <form onSubmit={handleSave} className="space-y-4">
                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500">Mata Kuliah</label>
-                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white" 
-                        value={currentData.course_id||''} onChange={e=>setCurrentData({...currentData, course_id:e.target.value})}>
-                        <option value="">-- Pilih Matkul --</option>
+                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
+                        value={currentData.course_id || ''} 
+                        onChange={e=>setCurrentData({...currentData, course_id:e.target.value})}>
+                        <option value="">-- Pilih --</option>
                         {courses.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500">Ruangan</label>
-                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white" 
-                        value={currentData.room_id||''} onChange={e=>setCurrentData({...currentData, room_id:e.target.value})}>
-                        <option value="">-- Pilih Ruang --</option>
-                        {rooms.map(r=><option key={r.id} value={r.id}>{r.nama || r.name}</option>)}
+                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
+                        value={currentData.room_id || ''} 
+                        onChange={e=>setCurrentData({...currentData, room_id:e.target.value})}>
+                        <option value="">-- Pilih --</option>
+                        {rooms.map(r=><option key={r.id} value={r.id}>{r.name || r.nama}</option>)}
                     </select>
                   </div>
                </div>
                
                <div>
                   <label className="text-xs font-bold uppercase text-gray-500">Nama Dosen</label>
-                  <input required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1" 
-                    placeholder="Contoh: Dr. Budi Santoso"
-                    value={currentData.lecturer||''} onChange={e=>setCurrentData({...currentData, lecturer:e.target.value})}/>
+                  <input required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 outline-none" 
+                    value={currentData.lecturer || ''} onChange={e=>setCurrentData({...currentData, lecturer:e.target.value})}/>
                </div>
 
                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-bold uppercase text-gray-500">Hari</label>
-                    <select className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white" 
-                        value={currentData.day||'Senin'} onChange={e=>setCurrentData({...currentData, day:e.target.value})}>
-                        {['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'].map(d=><option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <label className="text-xs font-bold uppercase text-gray-500">Tanggal</label>
+                    <input type="date" required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 outline-none" 
+                        value={currentData.date || ''} onChange={e=>setCurrentData({...currentData, date:e.target.value})}/>
                   </div>
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500">Mulai</label>
-                    <input type="time" required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1" 
-                        value={currentData.start_time||''} onChange={e=>setCurrentData({...currentData, start_time:e.target.value})}/>
+                    <input type="time" required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 outline-none" 
+                        value={currentData.start_time || ''} onChange={e=>setCurrentData({...currentData, start_time:e.target.value})}/>
                   </div>
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500">Selesai</label>
-                    <input type="time" required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1" 
-                        value={currentData.end_time||''} onChange={e=>setCurrentData({...currentData, end_time:e.target.value})}/>
+                    <input type="time" required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 outline-none" 
+                        value={currentData.end_time || ''} onChange={e=>setCurrentData({...currentData, end_time:e.target.value})}/>
                   </div>
                </div>
 

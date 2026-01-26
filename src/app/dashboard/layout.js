@@ -8,10 +8,10 @@ export default function DashboardLayout({ children }) {
   const [openSettings, setOpenSettings] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       <Sidebar onOpenSettings={() => setOpenSettings(true)} />
 
-      <main className="flex-1">
+      <main className="ml-60 min-h-screen">
         {children}
       </main>
 

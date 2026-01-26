@@ -6,25 +6,57 @@ import { Calendar, Clock, User, FileText, Send, Loader2 } from 'lucide-react';
 
 export default function PemesananPage() {
   const [loading, setLoading] = useState(false);
-  const [listRuangan, setListRuangan] = useState([]); 
+  const [listRuangan, setListRuangan] = useState([]);
+  
+  // State untuk menyimpan data User yang login
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // 1. PERBAIKAN STATE: Nama key disamakan persis dengan kolom Database
   const [formData, setFormData] = useState({
-    borrow_name: '',  // Sesuai DB
-    room_name: '',    // Sesuai DB (tipe int8/ID ruangan)
+    borrow_name: '',  // Nanti diisi otomatis
+    room_name: '',    
     booking_date: '',
     start_time: '',
     end_time: '',
     description: ''
   });
 
-  // Fetch Data Ruangan
+  // 1. FETCH DATA USER & RUANGAN SAAT LOAD
   useEffect(() => {
-    const fetchRuangan = async () => {
-      const { data } = await supabase.from('rooms').select('id, name');
-      if (data) setListRuangan(data);
+    const initData = async () => {
+      try {
+        // A. Ambil Data User yang Login
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Coba ambil nama dari tabel 'profiles' (sesuai diskusi sebelumnya)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', user.id)
+            .single();
+
+          // Prioritas Nama: 1. Profile DB, 2. Metadata Google, 3. Email
+          const displayName = profile?.name || user.user_metadata?.name || user.email;
+
+          setCurrentUser(user);
+          
+          // OTOMATIS ISI FORM NAME
+          setFormData(prev => ({
+            ...prev,
+            borrow_name: displayName // Input nama langsung terisi
+          }));
+        }
+
+        // B. Ambil Data Ruangan
+        const { data: rooms } = await supabase.from('rooms').select('id, name');
+        if (rooms) setListRuangan(rooms);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
     };
-    fetchRuangan();
+
+    initData();
   }, []);
 
   const handleChange = (e) => {
@@ -36,25 +68,22 @@ export default function PemesananPage() {
     setLoading(true);
 
     try {
-      // 2. AMBIL USER ID: Kita butuh tahu siapa yang login
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
+      if (!currentUser) {
         alert("Sesi habis. Silakan login ulang.");
         return;
       }
 
-      // 3. PAYLOAD LENGKAP: Masukkan room_name dan user_id
+      // Payload ke Database
       const { error } = await supabase.from('bookings').insert([
         {
-          borrow_name: formData.borrow_name,
-          room_name: parseInt(formData.room_name), // Database minta int8
+          borrow_name: formData.borrow_name, // Menggunakan nama yang sudah otomatis terisi
+          room_name: parseInt(formData.room_name),
           booking_date: formData.booking_date,
           start_time: formData.start_time,
           end_time: formData.end_time,
           description: formData.description,
           status: 'Pending',
-          user_id: user.id // Wajib diisi sesuai screenshot DB
+          user_id: currentUser.id // ID User dari state
         }
       ]);
 
@@ -62,9 +91,9 @@ export default function PemesananPage() {
 
       alert('Pengajuan berhasil dikirim!');
       
-      // Reset Form
+      // Reset Form (Kecuali nama, nama tetap dipertahankan)
       setFormData({
-        borrow_name: '',
+        borrow_name: formData.borrow_name, // Nama tidak di-reset
         room_name: '',
         booking_date: '',
         start_time: '',
@@ -81,41 +110,44 @@ export default function PemesananPage() {
   };
 
   return (
-    <div className="p-6 min-h-screen flex items-center justify-center">
+    <div className="p-6 min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-2xl">
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Formulir Peminjaman</h2>
+        <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Formulir Peminjaman</h2>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             
-            {/* Nama Peminjam */}
+            {/* Nama Peminjam (READ ONLY) */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Nama Lengkap</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Peminjam
+              </label>
               <div className="relative">
-                <User size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                <User size={18} className="absolute left-3 top-2.5 text-gray-500" />
                 <input
-                  required
                   type="text"
-                  name="borrow_name" // Sesuai State & DB
+                  name="borrow_name"
                   value={formData.borrow_name}
-                  onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Masukkan nama peminjam"
+                  readOnly // <--- PENTING: User tidak bisa edit manual
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none"
                 />
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">*Nama diambil otomatis dari akun login</p>
             </div>
 
             {/* Pilihan Ruangan */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Pilih Ruangan</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Pilih Ruangan
+              </label>
               <div className="relative">
-                <FileText size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                <FileText size={18} className="absolute left-3 top-2.5 text-gray-400" />
                 <select
                   required
-                  name="room_name" // Sesuai State & DB
+                  name="room_name"
                   value={formData.room_name}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none bg-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">-- Pilih Ruangan --</option>
                   {listRuangan.map((r) => (
@@ -127,16 +159,18 @@ export default function PemesananPage() {
 
             {/* Tanggal */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Tanggal Peminjaman</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Tanggal Peminjaman
+              </label>
               <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
                 <input
                   required
                   type="date"
                   name="booking_date"
                   value={formData.booking_date}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -144,30 +178,34 @@ export default function PemesananPage() {
             {/* Waktu */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Jam Mulai</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Jam Mulai
+                </label>
                 <div className="relative">
-                  <Clock size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                  <Clock size={18} className="absolute left-3 top-2.5 text-gray-400" />
                   <input
                     required
                     type="time"
                     name="start_time"
                     value={formData.start_time}
                     onChange={handleChange}
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Jam Selesai</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                  Jam Selesai
+                </label>
                 <div className="relative">
-                  <Clock size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                  <Clock size={18} className="absolute left-3 top-2.5 text-gray-400" />
                   <input
                     required
                     type="time"
                     name="end_time"
                     value={formData.end_time}
                     onChange={handleChange}
-                    className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -175,7 +213,9 @@ export default function PemesananPage() {
 
             {/* Keterangan */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Keperluan</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Keperluan
+              </label>
               <textarea
                 required
                 rows="3"
@@ -183,16 +223,16 @@ export default function PemesananPage() {
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Jelaskan tujuan peminjaman..."
-                className="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               ></textarea>
             </div>
 
             {/* Tombol Submit */}
-            <div className="pt-2">
+            <div className="pt-4">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                className="w-full bg-[#37352f] hover:bg-[#2e2c28] text-white font-medium py-2.5 rounded-lg transition-all flex justify-center items-center gap-2 text-sm disabled:opacity-50 shadow-sm"
               >
                 {loading ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} />}
                 {loading ? 'Mengirim...' : 'Kirim Pengajuan'}

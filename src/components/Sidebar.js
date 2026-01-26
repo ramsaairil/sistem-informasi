@@ -9,12 +9,22 @@ import {
   Bell,
   FileText,
   Clock,
-  Settings
+  Settings,
+  ChevronsUpDown
 } from 'lucide-react';
 
 export default function Sidebar({ onOpenSettings }) {
   const pathname = usePathname();
   const { user } = useAuth();
+
+  // LOGIKA TAMPILAN NAMA:
+  // 1. Jika ada user.name, pakai itu.
+  // 2. Jika tidak ada, ambil dari bagian depan email (misal: dosen1 dari dosen1@ulbi...)
+  // 3. Default ke 'User'
+  const displayName = user?.name || user?.email?.split('@')[0] || 'User';
+  
+  // Ambil huruf pertama untuk Ikon
+  const initial = displayName[0]?.toUpperCase();
 
   const Item = ({ href, label, Icon }) => (
     <a
@@ -32,36 +42,39 @@ export default function Sidebar({ onOpenSettings }) {
   );
 
   return (
-    <aside className="w-60 h-screen bg-[#F7F7F5] border-r border-[#E6E6E4] flex flex-col">
+    <aside className="w-60 bg-[#F7F7F5] border-r border-[#E6E6E4] flex flex-col font-sans fixed left-0 top-0 h-screen overflow-y-auto">
 
-      {/* PROFILE */}
+      {/* --- PROFILE SECTION (Gaya Notion / Minimalis) --- */}
       <button
         onClick={onOpenSettings}
-        className="flex items-center gap-3 px-3 py-3 m-2 rounded-md hover:bg-[#ECECEC] transition text-left"
+        className="flex items-center gap-2 px-3 py-2 m-2 rounded-md hover:bg-[#E3E2E0] transition text-left group flex-shrink-0"
       >
-        <div className="w-8 h-8 rounded-md bg-orange-600 text-white flex items-center justify-center font-semibold text-sm">
-          {user?.name?.[0] ?? 'U'}
+        {/* Avatar Kotak Kecil (Abu-abu) */}
+        <div className="w-5 h-5 rounded-[3px] bg-[#E3E2E0] text-[#37352f] flex items-center justify-center text-xs font-medium shadow-sm">
+          {initial}
         </div>
 
-        <div className="leading-tight">
-          <div className="text-sm font-medium truncate">
-            {user?.name ?? 'User'}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {user?.email ?? 'user@email.com'}
-          </div>
+        {/* Nama User (Tanpa Email) */}
+        <div className="flex-1 truncate text-sm font-medium text-[#37352f]">
+          {displayName}
+        </div>
+        
+        {/* Ikon Selector Kecil (Muncul saat hover) */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+           <ChevronsUpDown size={14} className="text-[#9D9D9C]" />
         </div>
       </button>
+      {/* ----------------------------------------------- */}
 
       {/* MENU */}
-      <div className="flex-1 px-2 py-3 space-y-1">
+      <div className="flex-1 px-2 py-1 space-y-0.5 overflow-y-auto">
         <Item href="/dashboard" label="Home" Icon={Home} />
         <Item href="/dashboard/jadwal" label="Jadwal" Icon={Calendar} />
         <Item href="/dashboard/ruangan" label="Ruangan" Icon={Building2} />
         <Item href="/dashboard/notifikasi" label="Notifikasi" Icon={Bell} />
 
-        <div className="mt-4 mb-1 px-2 text-xs font-semibold text-gray-400 uppercase">
-          Private
+        <div className="mt-5 mb-2 px-2 text-xs font-semibold text-[#9D9D9C]">
+          PRIVATE
         </div>
 
         <Item href="/dashboard/pemesanan" label="Pengajuan" Icon={FileText} />
@@ -69,7 +82,7 @@ export default function Sidebar({ onOpenSettings }) {
       </div>
 
       {/* SETTINGS */}
-      <div className="p-2 border-t border-[#E6E6E4]">
+      <div className="p-2 border-t border-[#E6E6E4] flex-shrink-0">
         <button
           onClick={onOpenSettings}
           className="w-full flex items-center gap-3 px-2 py-1.5 rounded-md text-sm text-[#5f5e5b] hover:bg-[#ECECEC]"

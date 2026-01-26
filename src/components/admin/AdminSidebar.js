@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
+import { useLogout } from '@/hooks/useLogout';
 import { 
   LayoutDashboard, 
   CalendarCheck, 
@@ -15,12 +15,7 @@ import {
 
 export default function AdminSidebar() {
   const pathname = usePathname(); // Untuk cek URL aktif
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login'); // Pastikan route login benar
-  };
+  const { logout } = useLogout();
 
   // Definisikan menu dengan href (URL tujuan)
   const menuItems = [
@@ -67,7 +62,7 @@ export default function AdminSidebar() {
 
       <div className="p-4 border-t border-gray-100">
         <button 
-          onClick={handleLogout}
+          onClick={logout}
           className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition"
         >
           <LogOut size={18} /> Logout

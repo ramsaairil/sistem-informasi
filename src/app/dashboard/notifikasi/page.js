@@ -110,12 +110,12 @@ export default function NotifikasiPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto min-h-screen">
+    <div className="max-w-7xl mx-auto px-6 py-8">
       
       {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-[#37352f] flex items-center gap-3">
             Notifikasi
             {/* Badge Jumlah Belum Dibaca */}
             {notif.filter(n => !n.is_read).length > 0 && (
@@ -124,7 +124,7 @@ export default function NotifikasiPage() {
               </span>
             )}
           </h1>
-          <p className="text-gray-500 mt-1">Pembaruan terkini seputar aktivitas kampus.</p>
+          <p className="text-[#787774] text-sm mt-1">Pembaruan terkini seputar aktivitas kampus.</p>
         </div>
 
         {notif.some(n => !n.is_read) && (
@@ -141,9 +141,9 @@ export default function NotifikasiPage() {
       {/* LIST NOTIFIKASI */}
       <div className="space-y-3">
         {loading ? (
-          <div className="text-center py-10 text-gray-400 animate-pulse">Memuat notifikasi...</div>
+          <div className="text-center py-10 text-[#9B9A97] animate-pulse">Memuat notifikasi...</div>
         ) : notif.length === 0 ? (
-          <div className="text-center py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+          <div className="text-center py-20 text-[#9B9A97] border-2 border-dashed border-[#E9E9E7] rounded-[4px] bg-[#FAFAF9]">
             <Bell size={48} className="mx-auto mb-4 opacity-20" />
             <p>Tidak ada notifikasi baru</p>
           </div>
@@ -153,10 +153,10 @@ export default function NotifikasiPage() {
               key={item.id}
               onClick={() => markAsRead(item.id)}
               className={`
-                relative group flex gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer
+                relative group flex gap-4 p-4 rounded-[4px] border transition-all duration-200 cursor-pointer
                 ${item.is_read 
-                  ? 'bg-white border-gray-100 hover:border-gray-300 opacity-90' 
-                  : 'bg-blue-50/40 border-blue-100 hover:border-blue-300 shadow-sm'
+                  ? 'bg-white border-[#E9E9E7] hover:border-[#D0CED0] opacity-90' 
+                  : 'bg-[#FFFBF0] border-[#E9E9E7] hover:border-[#D0CED0] shadow-sm'
                 }
               `}
             >
@@ -167,8 +167,8 @@ export default function NotifikasiPage() {
 
               {/* Icon Box */}
               <div className={`
-                flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors
-                ${item.is_read ? 'bg-gray-100 grayscale opacity-70' : 'bg-white shadow-sm ring-1 ring-gray-100'}
+                flex-shrink-0 w-10 h-10 rounded-[3px] flex items-center justify-center transition-colors
+                ${item.is_read ? 'bg-[#F5F5F4] opacity-70' : 'bg-white shadow-sm ring-1 ring-[#E9E9E7]'}
               `}>
                 {getIcon(item.type)}
               </div>
@@ -176,16 +176,16 @@ export default function NotifikasiPage() {
               {/* Content */}
               <div className="flex-1 pr-6">
                 <div className="flex justify-between items-start mb-1">
-                  <h3 className={`text-sm font-semibold ${item.is_read ? 'text-gray-600' : 'text-gray-900'}`}>
+                  <h3 className={`text-sm font-semibold ${item.is_read ? 'text-[#9B9A97]' : 'text-[#37352f]'}`}>
                     {item.title}
                   </h3>
-                  <span className="text-xs text-gray-400 flex items-center gap-1 whitespace-nowrap ml-4">
+                  <span className="text-xs text-[#9B9A97] flex items-center gap-1 whitespace-nowrap ml-4">
                     <Clock size={12} />
                     {formatTime(item.created_at)}
                   </span>
                 </div>
                 
-                <p className={`text-sm leading-relaxed ${item.is_read ? 'text-gray-400' : 'text-gray-600'}`}>
+                <p className={`text-sm leading-relaxed ${item.is_read ? 'text-[#9B9A97]' : 'text-[#787774]'}`}>
                   {item.message}
                 </p>
               </div>
