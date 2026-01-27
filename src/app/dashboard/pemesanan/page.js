@@ -2,17 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Clock, User, FileText, Send, Loader2 } from 'lucide-react';
+import { Calendar, Clock, FileText, Send, Loader2, BookOpen } from 'lucide-react';
 
 export default function PemesananPage() {
   const [loading, setLoading] = useState(false);
   const [listRuangan, setListRuangan] = useState([]);
-  
-  // State untuk menyimpan data User yang login
   const [currentUser, setCurrentUser] = useState(null);
 
   const [formData, setFormData] = useState({
-    borrow_name: '',  // Nanti diisi otomatis
+    borrow_name: '', 
     room_name: '',    
     booking_date: '',
     start_time: '',
@@ -20,34 +18,28 @@ export default function PemesananPage() {
     description: ''
   });
 
-  // 1. FETCH DATA USER & RUANGAN SAAT LOAD
+  // --- LOGIC FETCH DATA (TIDAK BERUBAH) ---
   useEffect(() => {
     const initData = async () => {
       try {
-        // A. Ambil Data User yang Login
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          // Coba ambil nama dari tabel 'profiles' (sesuai diskusi sebelumnya)
           const { data: profile } = await supabase
             .from('profiles')
             .select('name')
             .eq('id', user.id)
             .single();
 
-          // Prioritas Nama: 1. Profile DB, 2. Metadata Google, 3. Email
           const displayName = profile?.name || user.user_metadata?.name || user.email;
-
           setCurrentUser(user);
           
-          // OTOMATIS ISI FORM NAME
           setFormData(prev => ({
             ...prev,
-            borrow_name: displayName // Input nama langsung terisi
+            borrow_name: displayName 
           }));
         }
 
-        // B. Ambil Data Ruangan
         const { data: rooms } = await supabase.from('rooms').select('id, name');
         if (rooms) setListRuangan(rooms);
 
@@ -73,17 +65,16 @@ export default function PemesananPage() {
         return;
       }
 
-      // Payload ke Database
       const { error } = await supabase.from('bookings').insert([
         {
-          borrow_name: formData.borrow_name, // Menggunakan nama yang sudah otomatis terisi
+          borrow_name: formData.borrow_name,
           room_name: parseInt(formData.room_name),
           booking_date: formData.booking_date,
           start_time: formData.start_time,
           end_time: formData.end_time,
           description: formData.description,
           status: 'Pending',
-          user_id: currentUser.id // ID User dari state
+          user_id: currentUser.id
         }
       ]);
 
@@ -91,15 +82,14 @@ export default function PemesananPage() {
 
       alert('Pengajuan berhasil dikirim!');
       
-      // Reset Form (Kecuali nama, nama tetap dipertahankan)
-      setFormData({
-        borrow_name: formData.borrow_name, // Nama tidak di-reset
+      setFormData(prev => ({
+        ...prev,
         room_name: '',
         booking_date: '',
         start_time: '',
         end_time: '',
         description: ''
-      });
+      }));
 
     } catch (err) {
       console.error(err);
@@ -110,137 +100,110 @@ export default function PemesananPage() {
   };
 
   return (
-    <div className="p-6 min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-2xl">
-        <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Formulir Peminjaman</h2>
+    // Container Utama: Flex Column agar Header ada di atas Form
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F7F7F5] py-10 px-4 font-sans text-[#37352F]">
+      
+      {/* === HEADER CONTENT (Di Luar Form) === */}
+      
+
+      {/* === KOTAK FORM === */}
+      <div className="w-full max-w-xl bg-white p-8 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-[#E1E1E0]">
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          <form onSubmit={handleSubmit} className="space-y-5">
-            
-            {/* Nama Peminjam (READ ONLY) */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                Peminjam
-              </label>
-              <div className="relative">
-                <User size={18} className="absolute left-3 top-2.5 text-gray-500" />
-                <input
-                  type="text"
-                  name="borrow_name"
-                  value={formData.borrow_name}
-                  readOnly // <--- PENTING: User tidak bisa edit manual
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed focus:outline-none"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1">*Nama diambil otomatis dari akun login</p>
-            </div>
+          {/* Pilihan Ruangan */}
+          <div className="group">
+            <label className="block text-sm font-medium text-[#787774] mb-1.5 flex items-center gap-2">
+              <FileText size={14} /> Ruangan
+            </label>
+            <select
+              required
+              name="room_name"
+              value={formData.room_name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 text-sm bg-transparent border border-[#E1E1E0] rounded-md text-[#37352F] placeholder-[#9B9A97] focus:outline-none focus:border-[#37352F] focus:ring-1 focus:ring-[#37352F] transition-all hover:bg-[#F7F7F5]"
+            >
+              <option value="">Pilih opsi...</option>
+              {listRuangan.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Pilihan Ruangan */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                Pilih Ruangan
-              </label>
-              <div className="relative">
-                <FileText size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                <select
-                  required
-                  name="room_name"
-                  value={formData.room_name}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">-- Pilih Ruangan --</option>
-                  {listRuangan.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          {/* Tanggal */}
+          <div className="group">
+            <label className="block text-sm font-medium text-[#787774] mb-1.5 flex items-center gap-2">
+              <Calendar size={14} /> Tanggal
+            </label>
+            <input
+              required
+              type="date"
+              name="booking_date"
+              value={formData.booking_date}
+              onChange={handleChange}
+              className="w-full px-3 py-2 text-sm bg-transparent border border-[#E1E1E0] rounded-md text-[#37352F] focus:outline-none focus:border-[#37352F] focus:ring-1 focus:ring-[#37352F] transition-all hover:bg-[#F7F7F5]"
+            />
+          </div>
 
-            {/* Tanggal */}
+          {/* Waktu Mulai & Selesai */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                Tanggal Peminjaman
+              <label className="block text-sm font-medium text-[#787774] mb-1.5 flex items-center gap-2">
+                <Clock size={14} /> Jam Mulai
               </label>
-              <div className="relative">
-                <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                <input
-                  required
-                  type="date"
-                  name="booking_date"
-                  value={formData.booking_date}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Waktu */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                  Jam Mulai
-                </label>
-                <div className="relative">
-                  <Clock size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                  <input
-                    required
-                    type="time"
-                    name="start_time"
-                    value={formData.start_time}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                  Jam Selesai
-                </label>
-                <div className="relative">
-                  <Clock size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                  <input
-                    required
-                    type="time"
-                    name="end_time"
-                    value={formData.end_time}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Keterangan */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                Keperluan
-              </label>
-              <textarea
+              <input
                 required
-                rows="3"
-                name="description"
-                value={formData.description}
+                type="time"
+                name="start_time"
+                value={formData.start_time}
                 onChange={handleChange}
-                placeholder="Jelaskan tujuan peminjaman..."
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              ></textarea>
+                className="w-full px-3 py-2 text-sm bg-transparent border border-[#E1E1E0] rounded-md text-[#37352F] focus:outline-none focus:border-[#37352F] focus:ring-1 focus:ring-[#37352F] transition-all hover:bg-[#F7F7F5]"
+              />
             </div>
-
-            {/* Tombol Submit */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#37352f] hover:bg-[#2e2c28] text-white font-medium py-2.5 rounded-lg transition-all flex justify-center items-center gap-2 text-sm disabled:opacity-50 shadow-sm"
-              >
-                {loading ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} />}
-                {loading ? 'Mengirim...' : 'Kirim Pengajuan'}
-              </button>
+            <div>
+              <label className="block text-sm font-medium text-[#787774] mb-1.5 flex items-center gap-2">
+                <Clock size={14} /> Jam Selesai
+              </label>
+              <input
+                required
+                type="time"
+                name="end_time"
+                value={formData.end_time}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm bg-transparent border border-[#E1E1E0] rounded-md text-[#37352F] focus:outline-none focus:border-[#37352F] focus:ring-1 focus:ring-[#37352F] transition-all hover:bg-[#F7F7F5]"
+              />
             </div>
+          </div>
 
-          </form>
-        </div>
+          {/* Keperluan */}
+          <div className="group">
+            <label className="block text-sm font-medium text-[#787774] mb-1.5">
+              Keperluan / Deskripsi
+            </label>
+            <textarea
+              required
+              rows="4"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Ketik detail keperluan di sini..."
+              className="w-full px-3 py-2 text-sm bg-transparent border border-[#E1E1E0] rounded-md text-[#37352F] placeholder-[#9B9A97] focus:outline-none focus:border-[#37352F] focus:ring-1 focus:ring-[#37352F] transition-all hover:bg-[#F7F7F5] resize-none"
+            ></textarea>
+          </div>
+
+          {/* Tombol Submit */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-[#37352F] hover:bg-[#2F2F2F] text-white text-sm font-medium py-2 px-4 rounded-md transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="animate-spin" size={16}/> : <Send size={16} />}
+              {loading ? 'Menyimpan...' : 'Submit'}
+            </button>
+          </div>
+
+        </form>
       </div>
     </div>
   );

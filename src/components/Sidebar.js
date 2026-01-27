@@ -3,9 +3,12 @@
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { usePathname } from 'next/navigation';
+// 1. PENTING: Import Link agar sidebar tidak reset saat navigasi
+import Link from 'next/link'; 
 import {
   Home,
   Calendar,
+  CalendarRange, // 2. Import ikon baru untuk Kalender
   Building2,
   Bell,
   FileText,
@@ -21,17 +24,13 @@ export default function Sidebar({ onOpenSettings }) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  // LOGIKA TAMPILAN NAMA:
-  // 1. Jika ada user.name, pakai itu.
-  // 2. Jika tidak ada, ambil dari bagian depan email (misal: dosen1 dari dosen1@ulbi...)
-  // 3. Default ke 'User'
+  // LOGIKA TAMPILAN NAMA
   const displayName = user?.name || user?.email?.split('@')[0] || 'User';
-  
-  // Ambil huruf pertama untuk Ikon
   const initial = displayName[0]?.toUpperCase();
 
+  // 3. Ubah komponen Item menggunakan <Link> bukan <a>
   const Item = ({ href, label, Icon }) => (
-    <a
+    <Link
       href={href}
       className={`
         flex items-center gap-3 px-2 py-1.5 rounded-md text-sm transition
@@ -42,12 +41,12 @@ export default function Sidebar({ onOpenSettings }) {
     >
       <Icon size={16} className="text-gray-500" />
       {label}
-    </a>
+    </Link>
   );
 
   return (
     <>
-      {/* Toggle Button - Fixed Position (hanya tampil saat sidebar tertutup) */}
+      {/* Toggle Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -62,54 +61,45 @@ export default function Sidebar({ onOpenSettings }) {
         isOpen ? 'w-60' : 'w-0 -left-60'
       }`}>
 
-      {/* --- PROFILE SECTION (Gaya Notion / Minimalis) --- */}
+      {/* --- PROFILE SECTION --- */}
       <div className="flex items-center gap-2 px-3 py-2 m-2 rounded-md hover:bg-[#E3E2E0] transition group flex-shrink-0">
         <button
           onClick={onOpenSettings}
           className="flex items-center gap-2 flex-1 text-left"
         >
-          {/* Avatar Kotak Kecil (Abu-abu) */}
           <div className="w-5 h-5 rounded-[3px] bg-[#E3E2E0] text-[#37352f] flex items-center justify-center text-xs font-medium shadow-sm">
             {initial}
           </div>
-
-          {/* Nama User (Tanpa Email) */}
           <div className="flex-1 truncate text-sm font-medium text-[#37352f]">
             {displayName}
           </div>
         </button>
         
-        {/* Icons on hover */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-          <button
-            onClick={onOpenSettings}
-            title="Settings"
-            className="p-1 hover:bg-[#D3D3D1] rounded transition"
-          >
+          <button onClick={onOpenSettings} className="p-1 hover:bg-[#D3D3D1] rounded transition">
             <ChevronsUpDown size={14} className="text-[#9D9D9C]" />
           </button>
-          <button
-            onClick={() => setIsOpen(false)}
-            title="Tutup Sidebar"
-            className="p-1 hover:bg-[#D3D3D1] rounded transition"
-          >
+          <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-[#D3D3D1] rounded transition">
             <ChevronLeft size={14} className="text-[#9D9D9C]" />
           </button>
         </div>
       </div>
-      {/* ----------------------------------------------- */}
 
-      {/* MENU */}
+      {/* --- MENU --- */}
       <div className="flex-1 px-2 py-1 space-y-0.5 overflow-y-auto">
         <Item href="/dashboard" label="Beranda" Icon={Home} />
         <Item href="/dashboard/jadwal" label="Jadwal" Icon={Calendar} />
-        <Item href="/dashboard/ruangan" label="Ruangan" Icon={Building2} />
-        <Item href="/dashboard/notifikasi" label="Notifikasi" Icon={Bell} />
+        
+        {/* MENU BARU: KALENDER */}
+        <Item href="/dashboard/kalender" label="Kalender" Icon={CalendarRange} />
 
+        <Item href="/dashboard/ruangan" label="Ruangan" Icon={Building2} />
+        
         <div className="mt-5 mb-2 px-2 text-xs font-semibold text-[#9D9D9C]">
           PRIVATE
         </div>
 
+        <Item href="/dashboard/notifikasi" label="Notifikasi" Icon={Bell} />
         <Item href="/dashboard/pemesanan" label="Pengajuan" Icon={FileText} />
         <Item href="/dashboard/riwayat" label="Riwayat" Icon={Clock} />
       </div>

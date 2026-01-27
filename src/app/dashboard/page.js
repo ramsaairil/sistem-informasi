@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+// PERBAIKAN: Menambahkan Loader2 ke dalam import
 import { 
   Calendar, 
   Building2, 
@@ -9,9 +10,7 @@ import {
   ArrowRight, 
   Clock, 
   MapPin,
-  CheckCircle,
-  AlertCircle,
-  Zap
+  Loader2 
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -45,13 +44,22 @@ export default function DashboardPage() {
           .eq('user_id', user.id)
           .eq('is_read', false);
 
-        // --- B. GET JADWAL HARI INI (Approved Only) ---
-        const { data: bookingsData } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('tanggal', todayDate) 
-          .eq('status', 'Approved') 
-          .order('jam_mulai', { ascending: true });
+        // --- B. GET JADWAL HARI INI (Dari tabel 'schedules') ---
+        const { data: schedulesData, error: scheduleError } = await supabase
+          .from('schedules')
+          .select(`
+            id,
+            date,
+            start_time,
+            end_time,
+            status,
+            courses ( name ),
+            rooms!schedules_room_id_fkey ( name )
+          `)
+          .eq('date', todayDate) 
+          .order('start_time', { ascending: true });
+
+        if (scheduleError) console.error("Error fetching schedules:", scheduleError);
 
         // --- C. GET DATA RUANGAN ---
         const { data: roomsData } = await supabase
@@ -65,18 +73,26 @@ export default function DashboardPage() {
         let activeRoomNames = [];
         let processedJadwal = [];
 
-        if (bookingsData) {
-          processedJadwal = bookingsData.map((b) => {
+        if (schedulesData) {
+          processedJadwal = schedulesData.map((b) => {
             let status = 'Akan Datang';
+            const endTime = b.end_time || '23:59'; 
             
-            if (currentTime > b.jam_selesai) {
+            if (currentTime > endTime) {
               status = 'Selesai';
-            } else if (currentTime >= b.jam_mulai && currentTime <= b.jam_selesai) {
+            } else if (currentTime >= b.start_time && currentTime <= endTime) {
               status = 'Sedang Berlangsung';
-              activeRoomNames.push(b.ruangan); 
+              if (b.rooms?.name) activeRoomNames.push(b.rooms.name); 
             }
 
-            return { ...b, computedStatus: status };
+            return { 
+              ...b, 
+              jam_mulai: b.start_time,
+              jam_selesai: b.end_time || '-',
+              nama_kegiatan: b.courses?.name || 'Kegiatan',
+              nama_ruangan: b.rooms?.name || 'Unknown',
+              computedStatus: status 
+            };
           });
         }
 
@@ -86,7 +102,7 @@ export default function DashboardPage() {
 
         if (roomsData) {
           processedRuangan = roomsData.map(r => {
-            const isBusy = activeRoomNames.includes(r.nama);
+            const isBusy = activeRoomNames.includes(r.name);
             if (!isBusy) tersediaCount++;
 
             return {
@@ -98,7 +114,7 @@ export default function DashboardPage() {
 
         // --- E. SET STATE ---
         setStats({
-          jadwalHariIni: bookingsData?.length || 0,
+          jadwalHariIni: schedulesData?.length || 0,
           ruanganTersedia: tersediaCount,
           notifBelumBaca: notifCount || 0
         });
@@ -118,10 +134,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500">Memuat Dashboard...</p>
-        </div>
+        <Loader2 className="animate-spin text-gray-400" size={32} />
       </div>
     );
   }
@@ -142,10 +155,8 @@ export default function DashboardPage() {
 
         {/* STATS CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          
-          {/* Stat Card 1 */}
           <Link href="/dashboard/jadwal" className="group">
-            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md hover:border-[#D9D9D5] transition-all duration-200 cursor-pointer" style={{ boxShadow: "rgba(15, 15, 15, 0.05) 0px 0px 0px 1px inset" }}>
+            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md transition-all cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-8 h-8 rounded-[3px] bg-[#D3E5EF] flex items-center justify-center text-[#1B4B66]">
                   <Calendar size={16} />
@@ -157,9 +168,8 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Stat Card 2 */}
           <Link href="/dashboard/ruangan" className="group">
-            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md hover:border-[#D9D9D5] transition-all duration-200 cursor-pointer" style={{ boxShadow: "rgba(15, 15, 15, 0.05) 0px 0px 0px 1px inset" }}>
+            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md transition-all cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-8 h-8 rounded-[3px] bg-[#D3EBD5] flex items-center justify-center text-[#1B6B33]">
                   <Building2 size={16} />
@@ -171,9 +181,8 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Stat Card 3 */}
           <Link href="/dashboard/notifikasi" className="group">
-            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md hover:border-[#D9D9D5] transition-all duration-200 cursor-pointer" style={{ boxShadow: "rgba(15, 15, 15, 0.05) 0px 0px 0px 1px inset" }}>
+            <div className="bg-white border border-[#E9E9E7] rounded-[4px] p-4 hover:shadow-md transition-all cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-8 h-8 rounded-[3px] bg-[#F3E8D4] flex items-center justify-center text-[#9B4A09]">
                   <Bell size={16} />
@@ -194,23 +203,18 @@ export default function DashboardPage() {
           
           {/* LEFT COLUMN - Schedule */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow duration-200">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow">
               
-              {/* Header */}
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <Clock size={18} className="text-gray-600" />
-                    Jadwal Hari Ini
-                  </h2>
-                </div>
+                <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Clock size={18} className="text-gray-600" />
+                  Jadwal Hari Ini
+                </h2>
                 <Link href="/dashboard/jadwal" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition">
-                  Lihat Semua
-                  <ArrowRight size={14} />
+                  Lihat Semua <ArrowRight size={14} />
                 </Link>
               </div>
               
-              {/* Content */}
               <div className="flex-1 divide-y divide-gray-100">
                 {jadwal.length === 0 ? (
                   <div className="p-8 text-center text-gray-400">
@@ -222,21 +226,19 @@ export default function DashboardPage() {
                     <div key={item.id} className="p-6 hover:bg-gray-50 transition-colors group">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 flex-1">
-                          {/* Time Badge */}
                           <div className="flex-shrink-0">
                             <div className="text-xs font-mono font-bold text-gray-700 bg-gray-100 px-3 py-2 rounded-md text-center min-w-[90px]">
                               {item.jam_mulai?.slice(0,5)}
                             </div>
                           </div>
                           
-                          {/* Schedule Info */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 group-hover:text-gray-950 transition">
-                              {item.nama_peminjam || item.keterangan}
+                              {item.nama_kegiatan}
                             </p>
                             <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                               <MapPin size={14} />
-                              {item.ruangan}
+                              {item.nama_ruangan}
                             </div>
                             <p className="text-xs text-gray-400 mt-1">
                               {item.jam_mulai?.slice(0,5)} - {item.jam_selesai?.slice(0,5)}
@@ -244,7 +246,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         
-                        {/* Status Badge */}
                         <div className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap
                           ${item.computedStatus === 'Selesai' 
                             ? 'bg-gray-100 text-gray-600' 
@@ -265,9 +266,8 @@ export default function DashboardPage() {
 
           {/* RIGHT COLUMN - Rooms */}
           <div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow duration-200">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow">
               
-              {/* Header */}
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                 <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
                   <Building2 size={18} className="text-gray-600" />
@@ -278,7 +278,6 @@ export default function DashboardPage() {
                 </Link>
               </div>
               
-              {/* Content */}
               <div className="flex-1 divide-y divide-gray-100">
                 {ruangan.length === 0 ? (
                   <div className="p-8 text-center text-gray-400">
@@ -288,7 +287,7 @@ export default function DashboardPage() {
                 ) : (
                   ruangan.map((room) => (
                     <div key={room.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group">
-                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition">{room.nama}</span>
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition">{room.name}</span>
                       <span className={`text-xs font-bold px-2.5 py-1.5 rounded-md transition-colors
                         ${room.status === 'Tersedia' 
                           ? 'bg-green-50 text-green-700 border border-green-200 group-hover:bg-green-100' 
