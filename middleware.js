@@ -4,14 +4,17 @@ export function middleware(req) {
   const pathname = req.nextUrl.pathname;
   const token = req.cookies.get('token')?.value;
 
-  // Jika user sudah login dan mencoba akses /login atau /auth/login, redirect ke dashboard
+  // 1. Redirect USER LOGIN -> DASHBOARD
   if ((pathname === '/login' || pathname === '/auth/login') && token) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // Jika user belum login dan mencoba akses /dashboard atau /admin, redirect ke login
+  // 2. Redirect USER GUEST -> LOGIN (Dengan parameter ?next=...)
   if ((pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) && !token) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    const url = new URL('/login', req.url);
+    // Simpan halaman yang mau diakses user (misal: /dashboard/jadwal)
+    url.searchParams.set('next', pathname); 
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

@@ -15,9 +15,8 @@ export default function JadwalPage() {
     try {
       setLoading(true);
       
-      // PERBAIKAN DI SINI:
-      // 1. Menggunakan 'start_time' (sesuai database)
-      // 2. Menggunakan alias relasi 'courses:course_id' agar Supabase paham lewat mana harus join
+      // PERBAIKAN: Gunakan nama constraint (biasanya schedules_room_id_fkey)
+      // Jika nama constraint di database Anda berbeda, sesuaikan bagian setelah tanda seru (!)
       const { data, error } = await supabase
         .from('schedules')
         .select(`
@@ -26,14 +25,14 @@ export default function JadwalPage() {
           start_time,
           lecturer,
           status,
-          courses:course_id ( name ),
-          rooms:room_id ( name )
+          courses ( name ),
+          rooms!schedules_room_id_fkey ( name ) 
         `)
         .order('date', { ascending: true });
 
       if (error) throw error;
       
-      console.log("Data jadwal:", data); // Debugging
+      console.log("Data jadwal:", data);
       setJadwal(data || []);
       
     } catch (err) {
@@ -106,7 +105,6 @@ export default function JadwalPage() {
                       {/* Time Badge */}
                       <div className="flex-shrink-0">
                         <div className="text-[10px] font-mono font-bold text-[#37352f] bg-[#E3E2E0] px-2 py-1.5 rounded-[3px] text-center min-w-[75px]">
-                          {/* UPDATE: Menggunakan start_time */}
                           {item.start_time?.slice(0, 5) || '--:--'}
                         </div>
                       </div>
@@ -114,7 +112,7 @@ export default function JadwalPage() {
                       {/* Course Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-[#37352f] mb-1">
-                          {/* Mengambil nama dari relasi courses */}
+                          {/* Data dari relasi courses */}
                           {item.courses?.name || 'Mata Kuliah Tidak Ditemukan'}
                         </h3>
                         
@@ -124,7 +122,7 @@ export default function JadwalPage() {
                             <div>Dosen: {item.lecturer}</div>
                           )}
                           
-                          {/* Room (Mengambil nama dari relasi rooms) */}
+                          {/* Room (Data dari relasi rooms) */}
                           {item.rooms?.name && (
                             <div>Ruangan: {item.rooms.name}</div>
                           )}

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Upload, Eye, EyeOff } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 export default function SettingsContent() {
   const { user, setUser } = useAuth();
@@ -16,12 +16,6 @@ export default function SettingsContent() {
   // State untuk My Account
   const [fullName, setFullName] = useState('');
   const [photoUrl, setPhotoUrl] = useState(null);
-  
-  // State untuk Change Password
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Load user data
   useEffect(() => {
@@ -236,77 +230,6 @@ export default function SettingsContent() {
           />
           <p className="text-xs text-gray-500 mt-1">Email tidak bisa diubah</p>
         </div>
-      </div>
-
-      {/* Change Password Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">Ganti Password</h2>
-        
-        <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
-          
-          {/* Current Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password Saat Ini
-            </label>
-            <div className="relative">
-              <input 
-                type={showPasswords ? 'text' : 'password'}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                disabled={loading}
-                placeholder="Masukkan password saat ini"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all disabled:bg-gray-50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPasswords(!showPasswords)}
-                className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
-              >
-                {showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {/* New Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password Baru
-            </label>
-            <input 
-              type={showPasswords ? 'text' : 'password'}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={loading}
-              placeholder="Minimal 6 karakter"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all disabled:bg-gray-50"
-            />
-          </div>
-
-          {/* Confirm Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Konfirmasi Password
-            </label>
-            <input 
-              type={showPasswords ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={loading}
-              placeholder="Ulangi password baru"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all disabled:bg-gray-50"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition font-medium mt-6"
-          >
-            {loading ? 'Mengubah Password...' : 'Ubah Password'}
-          </button>
-        </form>
       </div>
     </>
   );

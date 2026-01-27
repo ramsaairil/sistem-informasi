@@ -91,7 +91,7 @@ export default function RiwayatPage() {
 
         {/* BUTTON FILTER */}
         <div className="flex bg-gray-100 p-1 rounded-lg">
-          {['Semua', 'Pending', 'Approved', 'Rejected'].map((status) => (
+          {['Semua', 'Diproses', 'Disetujui', 'Ditolak'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}

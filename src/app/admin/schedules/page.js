@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { 
-  Plus, Edit, Trash2, X, Save, Loader2, CalendarDays, Clock 
+  Plus, Edit, Trash2, X, Save, Loader2, CalendarDays, Clock, User 
 } from 'lucide-react';
 
 export default function SchedulesPage() {
@@ -12,27 +12,40 @@ export default function SchedulesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   
+  // State Form Data
   const [currentData, setCurrentData] = useState({
     course_id: '',
     room_id: '',
-    lecturer: '',
+    lecturer: '', // Nama dosen (text)
+    user_id: '',  // ID dosen (uuid) - opsional untuk relasi
     date: '', 
     start_time: '',
     end_time: ''
   });
   
   const [saving, setSaving] = useState(false);
+  
+  // State Data Dropdown
   const [rooms, setRooms] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [lecturers, setLecturers] = useState([]); // State untuk list dosen
 
-  // --- FETCH DATA ---
+  // --- 1. FETCH DATA (Termasuk Dosen) ---
   const fetchDropdowns = async () => {
     try {
+      // Ambil Ruangan
       const { data: r } = await supabase.from('rooms').select('*');
       if (r) setRooms(r);
+
+      // Ambil Mata Kuliah
       const { data: c } = await supabase.from('courses').select('*');
       if (c) setCourses(c);
-    } catch (e) { console.error(e); }
+
+      // Ambil Dosen dari tabel 'profiles'
+      const { data: l } = await supabase.from('profiles').select('id, full_name');
+      if (l) setLecturers(l);
+
+    } catch (e) { console.error("Error fetching dropdowns:", e); }
   };
 
   const fetchSchedules = async () => {
@@ -40,7 +53,8 @@ export default function SchedulesPage() {
     try {
       const { data, error } = await supabase
         .from('schedules')
-        .select(`*, rooms(*), courses(*)`) 
+        // Pastikan nama constraint 'schedules_room_id_fkey' benar sesuai database Anda
+        .select(`*, rooms!schedules_room_id_fkey(*), courses(*)`) 
         .order('date', { ascending: true });
         
       if (error) throw error;
@@ -52,9 +66,12 @@ export default function SchedulesPage() {
     }
   };
 
-  useEffect(() => { fetchSchedules(); fetchDropdowns(); }, []);
+  useEffect(() => { 
+    fetchSchedules(); 
+    fetchDropdowns(); 
+  }, []);
 
-  // --- ACTIONS ---
+  // --- 2. ACTIONS ---
   const handleDelete = async (id) => {
     if(!confirm('Hapus jadwal ini?')) return;
     try {
@@ -68,10 +85,12 @@ export default function SchedulesPage() {
     if (mode === 'edit' && data) {
       setCurrentData(data);
     } else {
+      // Reset form untuk mode tambah
       setCurrentData({
         course_id: '',
         room_id: '',
         lecturer: '',
+        user_id: '',
         date: new Date().toISOString().split('T')[0],
         start_time: '',
         end_time: ''
@@ -84,18 +103,19 @@ export default function SchedulesPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      // Pastikan kolom start_time & end_time SUDAH ADA di database
       const payload = {
         room_id: currentData.room_id,
         course_id: currentData.course_id,
-        lecturer: currentData.lecturer,
+        lecturer: currentData.lecturer, // Nama disimpan sebagai text
         date: currentData.date,
         start_time: currentData.start_time,
         end_time: currentData.end_time,
         status: 'Pending' 
       };
 
-      // Hapus properti kosong agar tidak error jika kolom nullable
+      // Opsional: Jika tabel schedules punya kolom user_id, uncomment baris ini:
+      // payload.user_id = currentData.user_id;
+
       if (!payload.start_time) delete payload.start_time;
       if (!payload.end_time) delete payload.end_time;
 
@@ -126,16 +146,18 @@ export default function SchedulesPage() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
+      {/* HEADER */}
       <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Jadwal Kuliah</h1>
-          <p className="text-sm text-gray-500">Atur jadwal perkuliahan.</p>
+          <p className="text-sm text-gray-500">Atur jadwal dan dosen pengampu.</p>
         </div>
         <button onClick={() => openModal('add')} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2 shadow-sm shadow-blue-200">
           <Plus size={16}/> Tambah Jadwal
         </button>
       </div>
 
+      {/* TABLE */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100 uppercase tracking-wider">
@@ -169,7 +191,9 @@ export default function SchedulesPage() {
                           {s.rooms?.name || s.rooms?.nama || 'Unknown'}
                       </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{s.lecturer}</td>
+                  <td className="px-6 py-4 text-gray-600 flex items-center gap-2">
+                    <User size={14} className="text-gray-400"/> {s.lecturer}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button onClick={() => openModal('edit', s)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit size={16}/></button>
@@ -183,6 +207,7 @@ export default function SchedulesPage() {
         </table>
       </div>
 
+      {/* MODAL FORM */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl p-6 border border-gray-100">
@@ -192,33 +217,65 @@ export default function SchedulesPage() {
             </div>
             
             <form onSubmit={handleSave} className="space-y-4">
+               {/* PILIHAN DROPDOWN */}
                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-gray-500">Mata Kuliah</label>
-                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
-                        value={currentData.course_id || ''} 
-                        onChange={e=>setCurrentData({...currentData, course_id:e.target.value})}>
-                        <option value="">-- Pilih --</option>
-                        {courses.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold uppercase text-gray-500">Ruangan</label>
-                    <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
-                        value={currentData.room_id || ''} 
-                        onChange={e=>setCurrentData({...currentData, room_id:e.target.value})}>
-                        <option value="">-- Pilih --</option>
-                        {rooms.map(r=><option key={r.id} value={r.id}>{r.name || r.nama}</option>)}
-                    </select>
-                  </div>
+                 <div>
+                   <label className="text-xs font-bold uppercase text-gray-500">Mata Kuliah</label>
+                   <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
+                       value={currentData.course_id || ''} 
+                       onChange={e=>setCurrentData({...currentData, course_id:e.target.value})}>
+                       <option value="">-- Pilih --</option>
+                       {courses.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="text-xs font-bold uppercase text-gray-500">Ruangan</label>
+                   <select required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none" 
+                       value={currentData.room_id || ''} 
+                       onChange={e=>setCurrentData({...currentData, room_id:e.target.value})}>
+                       <option value="">-- Pilih --</option>
+                       {rooms.map(r=><option key={r.id} value={r.id}>{r.name || r.nama}</option>)}
+                   </select>
+                 </div>
                </div>
                
+               {/* PILIHAN DOSEN (NEW) */}
                <div>
                   <label className="text-xs font-bold uppercase text-gray-500">Nama Dosen</label>
-                  <input required className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 outline-none" 
-                    value={currentData.lecturer || ''} onChange={e=>setCurrentData({...currentData, lecturer:e.target.value})}/>
+                  <select 
+                    required 
+                    className="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white outline-none"
+                    value={currentData.user_id || ''} // Menggunakan ID untuk value
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selectedLecturer = lecturers.find(l => l.id === selectedId);
+                      
+                      setCurrentData({
+                        ...currentData, 
+                        user_id: selectedId,
+                        // Jika ketemu, ambil namanya. Jika tidak (opsi default), kosongkan.
+                        lecturer: selectedLecturer ? selectedLecturer.full_name : '' 
+                      });
+                    }}
+                  >
+                    <option value="">-- Pilih Dosen --</option>
+                    {lecturers.length > 0 ? (
+                      lecturers.map((dosen) => (
+                        <option key={dosen.id} value={dosen.id}>
+                          {dosen.full_name}
+                        </option>
+                      ))
+                    ) : (
+                       <option disabled>Data dosen kosong / belum dimuat</option>
+                    )}
+                  </select>
+                  {/* Tampilkan nama yang terpilih untuk konfirmasi (opsional) */}
+                  {currentData.lecturer && (
+                    <p className="text-xs text-blue-600 mt-1">Terpilih: {currentData.lecturer}</p>
+                  )}
                </div>
 
+               {/* WAKTU */}
                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500">Tanggal</label>
@@ -238,7 +295,7 @@ export default function SchedulesPage() {
                </div>
 
                <button disabled={saving} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold flex justify-center gap-2 hover:bg-blue-700 transition mt-4">
-                 {saving ? <Loader2 className="animate-spin"/> : <Save size={18}/>} Simpan Data
+                 {saving ? <Loader2 className="animate-spin"/> : <Save size={18}/>} Simpan Jadwal
                </button>
             </form>
           </div>
