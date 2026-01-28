@@ -1,25 +1,62 @@
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
-export function middleware(req) {
-  const pathname = req.nextUrl.pathname;
-  const token = req.cookies.get('token')?.value;
+export async function middleware(request) {
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
-  // 1. Jika sudah login (punya token) tapi mencoba akses login, lempar ke dashboard awal
-  // Catatan: Admin nanti akan diredirect ulang oleh komponen dashboard ke /admin
-  if ((pathname === '/login' || pathname === '/auth/login') && token) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request: { headers: request.headers } });
+          cookiesToSet.forEach(({ name, value, options }) => 
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // Ambil user secara aman (getUser lebih kuat dari getSession)
+  const { data: { user } } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+
+  // 1. Proteksi: Jika BELUM login tapi akses dashboard/admin
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 2. Proteksi area terlarang jika tidak punya token
-  if ((pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) && !token) {
-    const url = new URL('/login', req.url);
-    url.searchParams.set('next', pathname); 
-    return NextResponse.redirect(url);
+  // 2. Proteksi: Jika SUDAH login
+  if (user) {
+    // Ambil role dari tabel profiles
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role;
+
+    // A. Jika mencoba akses login padahal sudah punya session
+    if (pathname === '/login') {
+      return NextResponse.redirect(new URL(role === 'Admin' ? '/admin' : '/dashboard', request.url));
+    }
+
+    // B. Cegah User biasa masuk ke folder /admin
+    if (pathname.startsWith('/admin') && role !== 'Admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/login', '/auth/login'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/login'],
 };

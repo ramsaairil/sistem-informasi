@@ -43,7 +43,7 @@ export default function LoginCard() {
         .eq('id', user.id)
         .single();
 
-      const userRole = profile?.role || 'Mahasiswa';
+      const userRole = profile?.role || 'Dosen';
       const nextUrl = searchParams.get('next');
       
       // 4. TENTUKAN TUJUAN
