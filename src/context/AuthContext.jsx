@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
           .eq('id', data.user.id)
           .single();
         
-        setRole(profile?.role || 'Mahasiswa');
+        setRole(profile?.role || 'Dosen');
       }
       setLoading(false);
     };

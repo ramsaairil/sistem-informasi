@@ -8,7 +8,7 @@ const Features = () => {
       icon: Zap,
     },
     {
-      title: "Jadwal Terjadwal",
+      title: "Jadwal",
       desc: "Sistem otomatis mencegah bentrok jadwal. Kepastian jadwal kelas untuk dosen dan mahasiswa.",
       icon: ShieldCheck,
     },

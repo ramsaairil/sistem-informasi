@@ -85,7 +85,7 @@ export default function RiwayatPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Riwayat Pemesanan</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Riwayat Pengajuan</h1>
           <p className="text-sm text-gray-500 mt-1">Daftar semua pengajuan peminjaman ruangan Anda.</p>
         </div>
 

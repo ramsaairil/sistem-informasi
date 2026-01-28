@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 export function useLogout() {
-  const router = useRouter();
   const { setUser, setRole } = useAuth();
 
   const logout = async () => {
@@ -13,24 +12,18 @@ export function useLogout() {
       // 1. Sign out dari Supabase
       await supabase.auth.signOut();
 
-      // 2. Clear auth state global (React Context)
+      // 2. Clear auth state global
       setUser(null);
       setRole(null);
 
-      // 3. Hapus cookie 'token' manual (PENTING untuk Middleware Anda)
+      // 3. Hapus cookie 'token' dengan path root agar valid di semua halaman
       document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
-      // 4. Refresh router Next.js (TAMBAHAN PENTING)
-      // Ini memaksa Next.js menghapus cache sisi klien (Client Cache)
-      // dan memverifikasi ulang ke server (Middleware akan berjalan lagi)
-      router.refresh();
-
-      // 5. Redirect ke login
-      router.push('/login');
+      // 4. Hard Redirect (Ini paling ampuh menghapus cache sisa login)
+      window.location.href = '/login';
       
     } catch (error) {
       console.error('Logout error:', error);
-      alert('Gagal logout: ' + error.message);
     }
   };
 
