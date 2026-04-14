@@ -20,13 +20,7 @@ const Navbar = () => {
           />
           
         </Link>
-
-        {/* Menu */}
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-[#787774]">
-          <Link href="#" className="hover:text-[#37352f] transition">Beranda</Link>
-          <Link href="#" className="hover:text-[#37352f] transition">Tentang</Link>
-          <Link href="#" className="hover:text-[#37352f] transition">Kontak</Link>
-        </div>
+        
       </div>
 
       {/* Kanan: Login */}
