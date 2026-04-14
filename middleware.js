@@ -45,11 +45,11 @@ export async function middleware(request) {
 
     // A. Jika mencoba akses login padahal sudah punya session
     if (pathname === '/login') {
-      return NextResponse.redirect(new URL(role === 'Admin' ? '/admin' : '/dashboard', request.url));
+      return NextResponse.redirect(new URL(role === 'admin' ? '/admin' : '/dashboard', request.url));
     }
 
     // B. Cegah User biasa masuk ke folder /admin
-    if (pathname.startsWith('/admin') && role !== 'Admin') {
+    if (pathname.startsWith('/admin') && role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
