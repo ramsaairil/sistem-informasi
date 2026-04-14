@@ -37,11 +37,16 @@ export default function LoginCard() {
       }
 
       // 3. AMBIL ROLE
-      const { data: profile } = await supabase
+      console.log("Login sukses, mengambil profil...");
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
+ 
+      if (profileError) {
+        console.warn("Profile tidak ditemukan, menggunakan role default 'dosen'");
+      }
 
       const userRole = profile?.role || 'dosen';
       const nextUrl = searchParams.get('next');
@@ -51,14 +56,14 @@ export default function LoginCard() {
       if (userRole !== 'admin' && nextUrl) {
         destination = nextUrl;
       }
+ 
+      console.log("Redirecting to:", destination);
 
-      // 5. REFRESH & REDIRECT
-      router.refresh(); 
-      setTimeout(() => {
-        router.push(destination);
-      }, 100);
-
+      // 5. REDIRECT (Gunakan location.href agar middleware terbaca sempurna)
+      window.location.href = destination;
+ 
     } catch (error) {
+      console.error("Login error:", error.message);
       setError(error.message);
       setIsLoading(false);
     } 

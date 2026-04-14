@@ -32,44 +32,36 @@ export default function DashboardPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // 1. Siapkan Tanggal & Jam Sekarang
+        // 1. Siapkan data waktu
         const now = new Date();
-        const todayDate = now.toISOString().split('T')[0]; // Format YYYY-MM-DD
-        const currentTime = now.toTimeString().slice(0, 5); // Format HH:mm
+        const todayDate = now.toISOString().split('T')[0];
+        const currentTime = now.toTimeString().slice(0, 5);
 
-        // --- A. GET NOTIFIKASI COUNT ---
-        const { count: notifCount } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false);
+        // --- A. GET NOTIFIKASI COUNT (Silent fail if table missing) ---
+        let notifCount = 0;
+        try {
+          const { count } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+          notifCount = count || 0;
+        } catch (e) { console.warn("Notifications table issues"); }
 
-        // --- B. GET JADWAL HARI INI (Dari tabel 'schedules') ---
+        // --- B. GET MASTER DATA (Rooms & Courses) ---
+        const { data: mRooms } = await supabase.from('rooms').select('id, name');
+        const { data: mCourses } = await supabase.from('courses').select('id, name');
+
+        // --- C. GET JADWAL HARI INI (Tanpa Join agar Aman) ---
         const { data: schedulesData, error: scheduleError } = await supabase
           .from('schedules')
-          .select(`
-            id,
-            date,
-            start_time,
-            end_time,
-            status,
-            courses ( name ),
-            rooms!schedules_room_id_fkey ( name )
-          `)
+          .select('*')
           .eq('date', todayDate) 
           .order('start_time', { ascending: true });
 
         if (scheduleError) console.error("Error fetching schedules:", scheduleError);
 
-        // --- C. GET DATA RUANGAN ---
-        const { data: roomsData } = await supabase
-          .from('rooms')
-          .select('*')
-          .limit(5);
-
-        // --- D. OLAH DATA (Logika Status) ---
-        
-        // 1. Olah Status Jadwal
+        // --- D. OLAH DATA JADWAL ---
         let activeRoomNames = [];
         let processedJadwal = [];
 
@@ -82,41 +74,47 @@ export default function DashboardPage() {
               status = 'Selesai';
             } else if (currentTime >= b.start_time && currentTime <= endTime) {
               status = 'Sedang Berlangsung';
-              if (b.rooms?.name) activeRoomNames.push(b.rooms.name); 
             }
+
+            // Manual Lookup
+            const roomName = mRooms?.find(r => r.id === b.room_id)?.name || 'Unknown';
+            const courseName = mCourses?.find(c => c.id === b.course_id)?.name || 'Kegiatan';
+
+            if (status === 'Sedang Berlangsung') activeRoomNames.push(roomName);
 
             return { 
               ...b, 
               jam_mulai: b.start_time,
               jam_selesai: b.end_time || '-',
-              nama_kegiatan: b.courses?.name || 'Kegiatan',
-              nama_ruangan: b.rooms?.name || 'Unknown',
+              nama_kegiatan: courseName,
+              nama_ruangan: roomName,
               computedStatus: status 
             };
           });
         }
 
-        // 2. Olah Status Ruangan
+        // --- E. OLAH STATUS RUANGAN ---
+        const { data: roomsData } = await supabase.from('rooms').select('*').limit(5);
         let processedRuangan = [];
         let tersediaCount = 0;
 
         if (roomsData) {
           processedRuangan = roomsData.map(r => {
             const isBusy = activeRoomNames.includes(r.name);
-            if (!isBusy) tersediaCount++;
+            if (!isBusy && r.status === 'Tersedia') tersediaCount++;
 
             return {
               ...r,
-              status: isBusy ? 'Terpakai' : 'Tersedia'
+              status: isBusy ? 'Terpakai' : r.status
             };
           });
         }
 
-        // --- E. SET STATE ---
+        // --- F. SET STATE ---
         setStats({
           jadwalHariIni: schedulesData?.length || 0,
           ruanganTersedia: tersediaCount,
-          notifBelumBaca: notifCount || 0
+          notifBelumBaca: notifCount
         });
         setJadwal(processedJadwal.slice(0, 5)); 
         setRuangan(processedRuangan.slice(0, 5)); 
