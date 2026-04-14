@@ -43,12 +43,12 @@ export default function LoginCard() {
         .eq('id', user.id)
         .single();
 
-      const userRole = profile?.role || 'Dosen';
+      const userRole = profile?.role || 'dosen';
       const nextUrl = searchParams.get('next');
       
       // 4. TENTUKAN TUJUAN
-      let destination = userRole === 'Admin' ? '/admin' : '/dashboard';
-      if (userRole !== 'Admin' && nextUrl) {
+      let destination = userRole === 'admin' ? '/admin' : '/dashboard';
+      if (userRole !== 'admin' && nextUrl) {
         destination = nextUrl;
       }
 
