@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Building2, X } from 'lucide-react';
+
+const supabase = createSupabaseBrowserClient();
 
 export default function RuanganPage() {
   const [rooms, setRooms] = useState([]);

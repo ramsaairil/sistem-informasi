@@ -17,7 +17,11 @@ export async function middleware(request) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          // Update cookies pada request agar data user terbaru tersedia di Server Components
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          );
+          // Update cookies pada response agar tersimpan di browser user
           response = NextResponse.next({
             request,
           });
@@ -29,10 +33,11 @@ export async function middleware(request) {
     }
   );
 
+  // PENTING: getUser() melakukan verifikasi ke server Supabase, aman untuk proteksi route
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
-  // 1. BELUM LOGIN
+  // 1. BELUM LOGIN: Coba akses /dashboard atau /admin
   if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -42,28 +47,23 @@ export async function middleware(request) {
 
   // 2. SUDAH LOGIN
   if (user) {
-    // Role based check (only when needed)
-    if (pathname === '/login' || pathname.startsWith('/admin')) {
+    // Jika user sudah login dan mencoba ke halaman login, arahkan ke home/dashboard
+    if (pathname === '/login') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // PROTEKSI ROLE (Hanya untuk /admin)
+    if (pathname.startsWith('/admin')) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
       
-      const role = (profile?.role || 'dosen').toLowerCase();
+      const role = profile?.role?.toLowerCase() || 'user';
 
-      // Always redirect away from login if authenticated
-      if (pathname === '/login') {
-        const url = request.nextUrl.clone();
-        url.pathname = role === 'admin' ? '/admin' : '/dashboard';
-        return NextResponse.redirect(url);
-      }
-
-      // Admin protection
-      if (pathname.startsWith('/admin') && role !== 'admin') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/dashboard';
-        return NextResponse.redirect(url);
+      if (role !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }
   }
@@ -72,5 +72,16 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/login'],
-};
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/dashboard/:path*', 
+    '/admin/:path*', 
+    '/login'
+  ],
+};

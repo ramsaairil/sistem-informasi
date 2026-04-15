@@ -1,7 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { CalendarCheck, Building2, Users } from 'lucide-react';
+
+const supabase = createSupabaseBrowserClient();
 import Link from 'next/link';
 
 export default function AdminDashboard() {

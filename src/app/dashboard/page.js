@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+
+const supabase = createSupabaseBrowserClient();
 // PERBAIKAN: Menambahkan Loader2 ke dalam import
 import { 
   Calendar, 
@@ -29,8 +31,20 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        // Coba getUser() dulu, jika gagal fallback ke getSession()
+        let user = null;
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData?.user;
+
+        if (!user) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          user = sessionData?.session?.user;
+        }
+
+        if (!user) {
+          setLoading(false);
+          return;
+        }
 
         // 1. Siapkan data waktu
         const now = new Date();

@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 export default function LoginCard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // Buat instance supabase dengan browser client (agar session tersimpan dalam cookie yg bisa dibaca middleware)
+  const supabase = createSupabaseBrowserClient();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,48 +26,37 @@ export default function LoginCard() {
 
     try {
       // 1. LOGIN KE SUPABASE
-      const { data: { user, session }, error: authError } = await supabase.auth.signInWithPassword({
+      // createBrowserClient otomatis menyimpan session sebagai cookie sb-*-auth-token
+      // yang dapat dibaca oleh middleware (createServerClient dari @supabase/ssr)
+      const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
       if (authError) throw authError;
 
-      // 2. SIMPAN TOKEN KE COOKIE
-      if (session) {
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        document.cookie = `token=${session.access_token}; path=/; max-age=604800; SameSite=Lax`;
-      }
-
-      // 3. AMBIL ROLE
-      console.log("Login sukses, mengambil profil...");
-      const { data: profile, error: profileError } = await supabase
+      // 2. AMBIL ROLE
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
- 
-      if (profileError) {
-        console.warn("Profile tidak ditemukan, menggunakan role default 'dosen'");
-      }
 
-      const userRole = profile?.role || 'dosen';
+      const userRole = profile?.role?.toLowerCase() || 'dosen';
       const nextUrl = searchParams.get('next');
       
-      // 4. TENTUKAN TUJUAN
+      // 3. TENTUKAN TUJUAN
       let destination = userRole === 'admin' ? '/admin' : '/dashboard';
       if (userRole !== 'admin' && nextUrl) {
         destination = nextUrl;
       }
- 
-      console.log("Redirecting to:", destination);
 
-      // 5. REDIRECT (Gunakan location.href agar middleware terbaca sempurna)
+      // 4. REDIRECT — gunakan window.location.href agar cookies sudah tertulis sebelum navigasi
       window.location.href = destination;
  
-    } catch (error) {
-      console.error("Login error:", error.message);
-      setError(error.message);
+    } catch (err) {
+      console.error("Login error:", err.message);
+      setError(err.message || 'Login gagal. Periksa email dan password Anda.');
       setIsLoading(false);
     } 
   };

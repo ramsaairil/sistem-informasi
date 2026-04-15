@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+
+const supabase = createSupabaseBrowserClient();
 import { 
   Calendar, 
   Clock, 

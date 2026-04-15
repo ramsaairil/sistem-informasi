@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+
+const supabase = createSupabaseBrowserClient();
 import { 
   Plus, Edit, Trash2, User, X, Save, Loader2, Mail, Shield, Eye, EyeOff
 } from 'lucide-react';

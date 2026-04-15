@@ -32,10 +32,11 @@ export default function DashboardLayout({ children }) {
   return (
     <SidebarProvider>
       <DashboardContent 
-        children={children} 
         openSettings={openSettings}
         setOpenSettings={setOpenSettings}
-      />
+      >
+        {children}
+      </DashboardContent>
     </SidebarProvider>
   );
 }

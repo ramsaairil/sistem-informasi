@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useAuth } from '@/context/AuthContext';
 import { Upload } from 'lucide-react';
+
+const supabase = createSupabaseBrowserClient();
 
 export default function SettingsContent() {
   const { user, setUser } = useAuth();

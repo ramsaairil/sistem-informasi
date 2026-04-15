@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Calendar, Clock, FileText, Send, Loader2, BookOpen } from 'lucide-react';
+
+const supabase = createSupabaseBrowserClient();
 
 export default function PemesananPage() {
   const [loading, setLoading] = useState(false);

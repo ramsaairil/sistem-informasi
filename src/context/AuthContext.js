@@ -1,7 +1,10 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+
+// Satu instance untuk seluruh app (browser client yg pakai cookie, konsisten dgn middleware)
+const supabase = createSupabaseBrowserClient();
 
 const AuthContext = createContext(null);
 
@@ -68,7 +71,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

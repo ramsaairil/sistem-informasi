@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useLogout } from '@/hooks/useLogout';
 import SettingsContent from './SettingsContent';
 import { User, Settings, LogOut, X, Lock } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+
+const supabase = createSupabaseBrowserClient();
 
 export default function SettingsModal({ open, onClose }) {
   const { logout } = useLogout();
